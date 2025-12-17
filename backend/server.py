@@ -419,12 +419,15 @@ async def list_vehicles(status: Optional[VehicleStatus] = None, user: dict = Dep
         query["status"] = status.value
     
     vehicles = await db.vehicles.find(query, {"_id": 0}).to_list(1000)
-    return [VehicleResponse(**v,
-                           transmission=TransmissionType(v["transmission"]),
-                           fuel_type=FuelType(v["fuel_type"]),
-                           status=VehicleStatus(v["status"]),
-                           created_at=datetime.fromisoformat(v["created_at"]) if isinstance(v["created_at"], str) else v["created_at"])
-            for v in vehicles]
+    result = []
+    for v in vehicles:
+        vehicle_data = dict(v)
+        vehicle_data["transmission"] = TransmissionType(v["transmission"])
+        vehicle_data["fuel_type"] = FuelType(v["fuel_type"])
+        vehicle_data["status"] = VehicleStatus(v["status"])
+        vehicle_data["created_at"] = datetime.fromisoformat(v["created_at"]) if isinstance(v["created_at"], str) else v["created_at"]
+        result.append(VehicleResponse(**vehicle_data))
+    return result
 
 @api_router.get("/vehicles/{vehicle_id}", response_model=VehicleResponse)
 async def get_vehicle(vehicle_id: str, user: dict = Depends(get_current_user)):
