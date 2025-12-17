@@ -182,7 +182,7 @@ class ReservationCreate(BaseModel):
 
 class ReservationResponse(BaseModel):
     id: str
-    company_id: str
+    company_id: Optional[str] = None
     vehicle_id: str
     customer_id: str
     start_date: datetime
