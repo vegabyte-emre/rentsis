@@ -1,0 +1,116 @@
+{
+  "timestamp": "2025-12-17T16:48:11.883053",
+  "total_tests": 18,
+  "passed_tests": 14,
+  "success_rate": 77.77777777777779,
+  "results": [
+    {
+      "test": "Root Endpoint",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Health Check",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "SuperAdmin Login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "FirmaAdmin Login",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Invalid Login (Should Fail)",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Get Current User",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Dashboard Stats",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "List Companies",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Create Company",
+      "success": false,
+      "details": "Response: {'status_code': 520, 'text': 'Internal Server Error'}",
+      "response_data": null
+    },
+    {
+      "test": "List Vehicles",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Create Vehicle",
+      "success": false,
+      "details": "Response: {'detail': 'Company ID required for SuperAdmin'}",
+      "response_data": null
+    },
+    {
+      "test": "List Customers",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Create Customer",
+      "success": false,
+      "details": "Response: {'status_code': 520, 'text': 'Internal Server Error'}",
+      "response_data": null
+    },
+    {
+      "test": "Reservations API",
+      "success": false,
+      "details": "Missing prerequisites (vehicle/customer)",
+      "response_data": null
+    },
+    {
+      "test": "GPS Vehicle Locations",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "List Payments",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "FirmaAdmin Companies Access (Should Fail)",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "FirmaAdmin Vehicles Access",
+      "success": true,
+      "details": "",
+      "response_data": null
+    }
+  ]
+}
