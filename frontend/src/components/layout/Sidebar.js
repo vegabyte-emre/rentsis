@@ -32,7 +32,7 @@ const menuItems = [
   { icon: MapPin, label: "GPS Takip", path: "/gps", roles: ["superadmin", "firma_admin", "operasyon"] },
   { icon: CreditCard, label: "Ödemeler", path: "/payments", roles: ["superadmin", "firma_admin", "muhasebe"] },
   { icon: FileText, label: "Raporlar", path: "/reports", roles: ["superadmin", "firma_admin", "muhasebe"] },
-  { icon: LayoutDashboard, label: "Tema Mağazası", path: "/theme-store", roles: ["superadmin", "firma_admin"] },
+  { icon: Car, label: "Tema Mağazası", path: "/theme-store", roles: ["superadmin", "firma_admin"] },
   { icon: Settings, label: "Ayarlar", path: "/settings", roles: ["superadmin", "firma_admin"] },
 ];
 
