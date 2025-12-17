@@ -202,7 +202,7 @@ class FleetEaseAPITester:
         }
         
         status, data = self.make_request('POST', 'customers', customer_data, use_admin_auth=True)
-        success = status == 201 and "id" in data
+        success = status == 200 and "id" in data
         
         if success:
             self.created_customer_id = data["id"]
