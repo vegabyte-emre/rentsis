@@ -442,11 +442,12 @@ async def get_vehicle(vehicle_id: str, user: dict = Depends(get_current_user)):
     vehicle = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
     if not vehicle:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    return VehicleResponse(**vehicle,
-                          transmission=TransmissionType(vehicle["transmission"]),
-                          fuel_type=FuelType(vehicle["fuel_type"]),
-                          status=VehicleStatus(vehicle["status"]),
-                          created_at=datetime.fromisoformat(vehicle["created_at"]) if isinstance(vehicle["created_at"], str) else vehicle["created_at"])
+    vehicle_data = dict(vehicle)
+    vehicle_data["transmission"] = TransmissionType(vehicle["transmission"])
+    vehicle_data["fuel_type"] = FuelType(vehicle["fuel_type"])
+    vehicle_data["status"] = VehicleStatus(vehicle["status"])
+    vehicle_data["created_at"] = datetime.fromisoformat(vehicle["created_at"]) if isinstance(vehicle["created_at"], str) else vehicle["created_at"]
+    return VehicleResponse(**vehicle_data)
 
 @api_router.put("/vehicles/{vehicle_id}", response_model=VehicleResponse)
 async def update_vehicle(vehicle_id: str, vehicle: VehicleCreate, user: dict = Depends(get_current_user)):
