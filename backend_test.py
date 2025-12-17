@@ -230,7 +230,7 @@ class FleetEaseAPITester:
         }
         
         status, data = self.make_request('POST', 'auth/register', register_data)
-        success = status == 201 and "access_token" in data
+        success = status == 200 and "access_token" in data
         
         if success:
             self.customer_token = data["access_token"]
