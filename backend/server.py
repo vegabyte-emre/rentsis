@@ -374,7 +374,9 @@ async def get_company(company_id: str, user: dict = Depends(get_current_user)):
     company = await db.companies.find_one({"id": company_id}, {"_id": 0})
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")
-    return CompanyResponse(**company, created_at=datetime.fromisoformat(company["created_at"]) if isinstance(company["created_at"], str) else company["created_at"])
+    company_data = dict(company)
+    company_data["created_at"] = datetime.fromisoformat(company["created_at"]) if isinstance(company["created_at"], str) else company["created_at"]
+    return CompanyResponse(**company_data)
 
 # ============== VEHICLE ROUTES ==============
 @api_router.post("/vehicles", response_model=VehicleResponse)
