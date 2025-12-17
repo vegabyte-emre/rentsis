@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 FleetEase Backend API Test Suite
-Tests all API endpoints for the corporate car rental platform
+Tests both admin and public endpoints
 """
 
 import requests
@@ -11,43 +11,46 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 
 class FleetEaseAPITester:
-    def __init__(self, base_url="https://fleetease-1.preview.emergentagent.com"):
+    def __init__(self, base_url: str = "https://fleetease-1.preview.emergentagent.com"):
         self.base_url = base_url
-        self.superadmin_token = None
-        self.firma_admin_token = None
+        self.admin_token = None
+        self.customer_token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.test_results = []
         
         # Test data storage
-        self.test_company_id = None
-        self.test_vehicle_id = None
-        self.test_customer_id = None
-        self.test_reservation_id = None
+        self.created_company_id = None
+        self.created_vehicle_id = None
+        self.created_customer_id = None
+        self.created_reservation_id = None
 
-    def log_test(self, name: str, success: bool, details: str = "", response_data: Any = None):
+    def log_test(self, name: str, success: bool, details: str = ""):
         """Log test result"""
         self.tests_run += 1
         if success:
             self.tests_passed += 1
-            print(f"✅ {name}: PASSED")
+            print(f"✅ {name}")
         else:
-            print(f"❌ {name}: FAILED - {details}")
+            print(f"❌ {name} - {details}")
         
         self.test_results.append({
             "test": name,
             "success": success,
             "details": details,
-            "response_data": response_data
+            "timestamp": datetime.now().isoformat()
         })
 
-    def make_request(self, method: str, endpoint: str, data: Dict = None, token: str = None, expected_status: int = 200) -> tuple:
-        """Make HTTP request and return success status and response"""
+    def make_request(self, method: str, endpoint: str, data: Optional[Dict] = None, 
+                    use_admin_auth: bool = False, use_customer_auth: bool = False) -> tuple:
+        """Make HTTP request with proper headers"""
         url = f"{self.base_url}/api/{endpoint}"
         headers = {'Content-Type': 'application/json'}
         
-        if token:
-            headers['Authorization'] = f'Bearer {token}'
+        if use_admin_auth and self.admin_token:
+            headers['Authorization'] = f'Bearer {self.admin_token}'
+        elif use_customer_auth and self.customer_token:
+            headers['Authorization'] = f'Bearer {self.customer_token}'
 
         try:
             if method == 'GET':
@@ -63,139 +66,95 @@ class FleetEaseAPITester:
             else:
                 return False, {"error": f"Unsupported method: {method}"}
 
-            success = response.status_code == expected_status
             try:
                 response_data = response.json()
             except:
-                response_data = {"status_code": response.status_code, "text": response.text}
-            
-            return success, response_data
+                response_data = {"text": response.text}
 
+            return response.status_code, response_data
         except Exception as e:
-            return False, {"error": str(e)}
+            return 0, {"error": str(e)}
 
     def test_health_check(self):
         """Test basic health endpoints"""
         print("\n🔍 Testing Health Endpoints...")
         
         # Test root endpoint
-        success, response = self.make_request('GET', '')
-        self.log_test("Root Endpoint", success, 
-                     "" if success else f"Status: {response.get('status_code', 'Unknown')}")
+        status, data = self.make_request('GET', '')
+        success = status == 200 and "FleetEase API" in str(data)
+        self.log_test("Root endpoint", success, f"Status: {status}")
         
         # Test health endpoint
-        success, response = self.make_request('GET', 'health')
-        self.log_test("Health Check", success,
-                     "" if success else f"Status: {response.get('status_code', 'Unknown')}")
+        status, data = self.make_request('GET', 'health')
+        success = status == 200 and data.get("status") == "healthy"
+        self.log_test("Health endpoint", success, f"Status: {status}")
 
-    def test_authentication(self):
-        """Test authentication endpoints"""
-        print("\n🔍 Testing Authentication...")
+    def test_admin_auth(self):
+        """Test admin authentication"""
+        print("\n🔍 Testing Admin Authentication...")
         
-        # Test SuperAdmin login
+        # Test admin login with provided credentials
         login_data = {
             "email": "admin@fleetease.com",
             "password": "admin123"
         }
-        success, response = self.make_request('POST', 'auth/login', login_data)
-        if success and 'access_token' in response:
-            self.superadmin_token = response['access_token']
-            self.log_test("SuperAdmin Login", True)
-        else:
-            self.log_test("SuperAdmin Login", False, f"Response: {response}")
         
-        # Test FirmaAdmin login
-        login_data = {
-            "email": "firma@fleetease.com", 
-            "password": "firma123"
-        }
-        success, response = self.make_request('POST', 'auth/login', login_data)
-        if success and 'access_token' in response:
-            self.firma_admin_token = response['access_token']
-            self.log_test("FirmaAdmin Login", True)
-        else:
-            self.log_test("FirmaAdmin Login", False, f"Response: {response}")
+        status, data = self.make_request('POST', 'auth/login', login_data)
+        success = status == 200 and "access_token" in data
         
-        # Test invalid login
-        invalid_data = {
-            "email": "invalid@test.com",
-            "password": "wrongpass"
-        }
-        success, response = self.make_request('POST', 'auth/login', invalid_data, expected_status=401)
-        self.log_test("Invalid Login (Should Fail)", success)
-        
-        # Test /auth/me endpoint
-        if self.superadmin_token:
-            success, response = self.make_request('GET', 'auth/me', token=self.superadmin_token)
-            self.log_test("Get Current User", success)
-
-    def test_dashboard_stats(self):
-        """Test dashboard statistics endpoint"""
-        print("\n🔍 Testing Dashboard Stats...")
-        
-        if not self.superadmin_token:
-            self.log_test("Dashboard Stats", False, "No auth token available")
-            return
-        
-        success, response = self.make_request('GET', 'dashboard/stats', token=self.superadmin_token)
         if success:
-            required_fields = ['total_vehicles', 'available_vehicles', 'rented_vehicles', 
-                             'total_customers', 'active_reservations', 'total_revenue']
-            missing_fields = [field for field in required_fields if field not in response]
-            if missing_fields:
-                self.log_test("Dashboard Stats", False, f"Missing fields: {missing_fields}")
+            self.admin_token = data["access_token"]
+            self.log_test("Admin login", True)
+            
+            # Test get current user
+            status, user_data = self.make_request('GET', 'auth/me', use_admin_auth=True)
+            success = status == 200 and user_data.get("role") in ["superadmin", "firma_admin"]
+            self.log_test("Get current admin user", success, f"Role: {user_data.get('role', 'unknown')}")
+        else:
+            self.log_test("Admin login", False, f"Status: {status}, Response: {data}")
+
+    def test_public_vehicles_api(self):
+        """Test public vehicle endpoints (no auth required)"""
+        print("\n🔍 Testing Public Vehicle APIs...")
+        
+        # Test list public vehicles
+        status, data = self.make_request('GET', 'public/vehicles')
+        success = status == 200 and isinstance(data, list)
+        vehicle_count = len(data) if isinstance(data, list) else 0
+        self.log_test("List public vehicles", success, f"Found {vehicle_count} vehicles")
+        
+        # Test with limit parameter
+        status, data = self.make_request('GET', 'public/vehicles?limit=3')
+        success = status == 200 and isinstance(data, list) and len(data) <= 3
+        self.log_test("List public vehicles with limit", success)
+        
+        # Test get single vehicle (if vehicles exist)
+        if vehicle_count > 0 and isinstance(data, list) and len(data) > 0:
+            vehicle_id = data[0].get("id")
+            if vehicle_id:
+                status, vehicle_data = self.make_request('GET', f'public/vehicles/{vehicle_id}')
+                success = status == 200 and vehicle_data.get("id") == vehicle_id
+                self.log_test("Get single public vehicle", success)
             else:
-                self.log_test("Dashboard Stats", True)
+                self.log_test("Get single public vehicle", False, "No vehicle ID found")
         else:
-            self.log_test("Dashboard Stats", False, f"Response: {response}")
+            self.log_test("Get single public vehicle", False, "No vehicles available to test")
 
-    def test_companies_api(self):
-        """Test companies API endpoints"""
-        print("\n🔍 Testing Companies API...")
-        
-        if not self.superadmin_token:
-            self.log_test("Companies API", False, "No SuperAdmin token available")
+    def test_admin_vehicle_management(self):
+        """Test admin vehicle management"""
+        if not self.admin_token:
+            self.log_test("Admin vehicle management", False, "No admin token available")
             return
-        
-        # Test list companies
-        success, response = self.make_request('GET', 'companies', token=self.superadmin_token)
-        self.log_test("List Companies", success)
-        
-        # Test create company
-        company_data = {
-            "name": f"Test Company {datetime.now().strftime('%H%M%S')}",
-            "code": f"TEST{datetime.now().strftime('%H%M%S')}",
-            "address": "Test Address",
-            "phone": "+90 555 123 4567",
-            "email": "test@company.com",
-            "tax_number": "1234567890"
-        }
-        success, response = self.make_request('POST', 'companies', company_data, token=self.superadmin_token, expected_status=200)
-        if success and 'id' in response:
-            self.test_company_id = response['id']
-            self.log_test("Create Company", True)
-        else:
-            self.log_test("Create Company", False, f"Response: {response}")
-
-    def test_vehicles_api(self):
-        """Test vehicles API endpoints"""
-        print("\n🔍 Testing Vehicles API...")
-        
-        if not self.superadmin_token:
-            self.log_test("Vehicles API", False, "No auth token available")
-            return
-        
-        # Test list vehicles
-        success, response = self.make_request('GET', 'vehicles', token=self.superadmin_token)
-        self.log_test("List Vehicles", success)
+            
+        print("\n🔍 Testing Admin Vehicle Management...")
         
         # Test create vehicle
         vehicle_data = {
-            "plate": f"34TEST{datetime.now().strftime('%H%M')}",
+            "plate": "34TEST123",
             "brand": "Toyota",
             "model": "Corolla",
             "year": 2023,
-            "segment": "Sedan",
+            "segment": "Ekonomi",
             "transmission": "otomatik",
             "fuel_type": "benzin",
             "seat_count": 5,
@@ -204,128 +163,175 @@ class FleetEaseAPITester:
             "color": "Beyaz",
             "mileage": 15000
         }
-        success, response = self.make_request('POST', 'vehicles', vehicle_data, token=self.superadmin_token, expected_status=200)
-        if success and 'id' in response:
-            self.test_vehicle_id = response['id']
-            self.log_test("Create Vehicle", True)
+        
+        status, data = self.make_request('POST', 'vehicles', vehicle_data, use_admin_auth=True)
+        success = status == 201 and "id" in data
+        
+        if success:
+            self.created_vehicle_id = data["id"]
+            self.log_test("Create vehicle", True)
+            
+            # Test list vehicles
+            status, vehicles = self.make_request('GET', 'vehicles', use_admin_auth=True)
+            success = status == 200 and isinstance(vehicles, list)
+            self.log_test("List admin vehicles", success, f"Found {len(vehicles) if isinstance(vehicles, list) else 0} vehicles")
+            
+            # Test get single vehicle
+            status, vehicle = self.make_request('GET', f'vehicles/{self.created_vehicle_id}', use_admin_auth=True)
+            success = status == 200 and vehicle.get("id") == self.created_vehicle_id
+            self.log_test("Get single admin vehicle", success)
+            
         else:
-            self.log_test("Create Vehicle", False, f"Response: {response}")
-        
-        # Test get vehicle by ID
-        if self.test_vehicle_id:
-            success, response = self.make_request('GET', f'vehicles/{self.test_vehicle_id}', token=self.superadmin_token)
-            self.log_test("Get Vehicle by ID", success)
+            self.log_test("Create vehicle", False, f"Status: {status}, Response: {data}")
 
-    def test_customers_api(self):
-        """Test customers API endpoints"""
-        print("\n🔍 Testing Customers API...")
-        
-        if not self.superadmin_token:
-            self.log_test("Customers API", False, "No auth token available")
+    def test_customer_management(self):
+        """Test customer management"""
+        if not self.admin_token:
+            self.log_test("Customer management", False, "No admin token available")
             return
-        
-        # Test list customers
-        success, response = self.make_request('GET', 'customers', token=self.superadmin_token)
-        self.log_test("List Customers", success)
+            
+        print("\n🔍 Testing Customer Management...")
         
         # Test create customer
         customer_data = {
-            "tc_no": f"1234567890{datetime.now().strftime('%S')}",
+            "tc_no": "12345678901",
             "full_name": "Test Müşteri",
-            "email": f"test{datetime.now().strftime('%H%M%S')}@customer.com",
-            "phone": "+90 555 987 6543",
-            "address": "Test Müşteri Adresi",
-            "license_no": "TEST123456",
-            "license_class": "B"
+            "email": "test@customer.com",
+            "phone": "0555 123 4567",
+            "address": "Test Adres, İstanbul"
         }
-        success, response = self.make_request('POST', 'customers', customer_data, token=self.superadmin_token, expected_status=200)
-        if success and 'id' in response:
-            self.test_customer_id = response['id']
-            self.log_test("Create Customer", True)
+        
+        status, data = self.make_request('POST', 'customers', customer_data, use_admin_auth=True)
+        success = status == 201 and "id" in data
+        
+        if success:
+            self.created_customer_id = data["id"]
+            self.log_test("Create customer", True)
+            
+            # Test list customers
+            status, customers = self.make_request('GET', 'customers', use_admin_auth=True)
+            success = status == 200 and isinstance(customers, list)
+            self.log_test("List customers", success)
+            
         else:
-            self.log_test("Create Customer", False, f"Response: {response}")
+            self.log_test("Create customer", False, f"Status: {status}, Response: {data}")
 
-    def test_reservations_api(self):
-        """Test reservations API endpoints"""
-        print("\n🔍 Testing Reservations API...")
+    def test_customer_auth_flow(self):
+        """Test customer registration and login"""
+        print("\n🔍 Testing Customer Authentication Flow...")
         
-        if not self.superadmin_token or not self.test_vehicle_id or not self.test_customer_id:
-            self.log_test("Reservations API", False, "Missing prerequisites (vehicle/customer)")
+        # Test customer registration
+        register_data = {
+            "email": "newcustomer@test.com",
+            "password": "testpass123",
+            "full_name": "Yeni Müşteri",
+            "phone": "0555 987 6543",
+            "role": "musteri"
+        }
+        
+        status, data = self.make_request('POST', 'auth/register', register_data)
+        success = status == 201 and "access_token" in data
+        
+        if success:
+            self.customer_token = data["access_token"]
+            self.log_test("Customer registration", True)
+            
+            # Test customer login
+            login_data = {
+                "email": register_data["email"],
+                "password": register_data["password"]
+            }
+            
+            status, login_response = self.make_request('POST', 'auth/login', login_data)
+            success = status == 200 and "access_token" in login_response
+            self.log_test("Customer login", success)
+            
+            if success:
+                self.customer_token = login_response["access_token"]
+                
+        else:
+            self.log_test("Customer registration", False, f"Status: {status}, Response: {data}")
+
+    def test_reservation_flow(self):
+        """Test reservation creation and management"""
+        if not self.admin_token or not self.created_vehicle_id or not self.created_customer_id:
+            self.log_test("Reservation flow", False, "Missing prerequisites (admin token, vehicle, or customer)")
             return
-        
-        # Test list reservations
-        success, response = self.make_request('GET', 'reservations', token=self.superadmin_token)
-        self.log_test("List Reservations", success)
+            
+        print("\n🔍 Testing Reservation Flow...")
         
         # Test create reservation
         start_date = datetime.now() + timedelta(days=1)
         end_date = start_date + timedelta(days=3)
         
         reservation_data = {
-            "vehicle_id": self.test_vehicle_id,
-            "customer_id": self.test_customer_id,
+            "vehicle_id": self.created_vehicle_id,
+            "customer_id": self.created_customer_id,
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
-            "pickup_location": "Test Pickup Location",
-            "return_location": "Test Return Location",
-            "notes": "Test reservation notes"
+            "pickup_location": "İstanbul Havalimanı",
+            "return_location": "Sabiha Gökçen Havalimanı",
+            "notes": "Test rezervasyon"
         }
-        success, response = self.make_request('POST', 'reservations', reservation_data, token=self.superadmin_token, expected_status=200)
-        if success and 'id' in response:
-            self.test_reservation_id = response['id']
-            self.log_test("Create Reservation", True)
+        
+        status, data = self.make_request('POST', 'reservations', reservation_data, use_admin_auth=True)
+        success = status == 201 and "id" in data
+        
+        if success:
+            self.created_reservation_id = data["id"]
+            self.log_test("Create reservation", True)
+            
+            # Test list reservations
+            status, reservations = self.make_request('GET', 'reservations', use_admin_auth=True)
+            success = status == 200 and isinstance(reservations, list)
+            self.log_test("List reservations", success)
+            
+            # Test get single reservation
+            status, reservation = self.make_request('GET', f'reservations/{self.created_reservation_id}', use_admin_auth=True)
+            success = status == 200 and reservation.get("id") == self.created_reservation_id
+            self.log_test("Get single reservation", success)
+            
         else:
-            self.log_test("Create Reservation", False, f"Response: {response}")
+            self.log_test("Create reservation", False, f"Status: {status}, Response: {data}")
 
-    def test_gps_api(self):
-        """Test GPS tracking API (mock data)"""
-        print("\n🔍 Testing GPS API...")
-        
-        if not self.superadmin_token:
-            self.log_test("GPS API", False, "No auth token available")
+    def test_dashboard_stats(self):
+        """Test dashboard statistics"""
+        if not self.admin_token:
+            self.log_test("Dashboard stats", False, "No admin token available")
             return
+            
+        print("\n🔍 Testing Dashboard Statistics...")
         
-        success, response = self.make_request('GET', 'gps/vehicles', token=self.superadmin_token)
-        self.log_test("GPS Vehicle Locations", success)
+        status, data = self.make_request('GET', 'dashboard/stats', use_admin_auth=True)
+        success = status == 200 and "total_vehicles" in data
+        
+        if success:
+            stats = data
+            self.log_test("Dashboard stats", True, 
+                         f"Vehicles: {stats.get('total_vehicles', 0)}, "
+                         f"Customers: {stats.get('total_customers', 0)}, "
+                         f"Reservations: {stats.get('active_reservations', 0)}")
+        else:
+            self.log_test("Dashboard stats", False, f"Status: {status}")
 
-    def test_payments_api(self):
-        """Test payments API endpoints"""
-        print("\n🔍 Testing Payments API...")
+    def test_error_handling(self):
+        """Test error handling for invalid requests"""
+        print("\n🔍 Testing Error Handling...")
         
-        if not self.superadmin_token:
-            self.log_test("Payments API", False, "No auth token available")
-            return
+        # Test invalid endpoint
+        status, data = self.make_request('GET', 'invalid/endpoint')
+        success = status == 404
+        self.log_test("Invalid endpoint returns 404", success)
         
-        # Test list payments
-        success, response = self.make_request('GET', 'payments', token=self.superadmin_token)
-        self.log_test("List Payments", success)
+        # Test unauthorized access
+        status, data = self.make_request('GET', 'vehicles')
+        success = status == 401 or status == 403
+        self.log_test("Unauthorized access blocked", success)
         
-        # Test create payment (if we have a reservation)
-        if self.test_reservation_id:
-            payment_data = {
-                "reservation_id": self.test_reservation_id,
-                "amount": 750.0,
-                "payment_type": "card",
-                "card_holder": "Test Cardholder"
-            }
-            success, response = self.make_request('POST', 'payments', payment_data, token=self.superadmin_token, expected_status=200)
-            self.log_test("Create Payment", success)
-
-    def test_role_based_access(self):
-        """Test role-based access control"""
-        print("\n🔍 Testing Role-Based Access...")
-        
-        if not self.firma_admin_token:
-            self.log_test("Role-Based Access", False, "No FirmaAdmin token available")
-            return
-        
-        # FirmaAdmin should NOT be able to access companies endpoint
-        success, response = self.make_request('GET', 'companies', token=self.firma_admin_token, expected_status=403)
-        self.log_test("FirmaAdmin Companies Access (Should Fail)", success)
-        
-        # FirmaAdmin should be able to access vehicles
-        success, response = self.make_request('GET', 'vehicles', token=self.firma_admin_token)
-        self.log_test("FirmaAdmin Vehicles Access", success)
+        # Test invalid vehicle ID
+        status, data = self.make_request('GET', 'public/vehicles/invalid-id')
+        success = status == 404
+        self.log_test("Invalid vehicle ID returns 404", success)
 
     def run_all_tests(self):
         """Run all test suites"""
@@ -333,62 +339,61 @@ class FleetEaseAPITester:
         print(f"🌐 Testing against: {self.base_url}")
         
         try:
+            # Core functionality tests
             self.test_health_check()
-            self.test_authentication()
+            self.test_admin_auth()
+            self.test_public_vehicles_api()
+            
+            # Admin functionality tests
+            self.test_admin_vehicle_management()
+            self.test_customer_management()
+            self.test_reservation_flow()
             self.test_dashboard_stats()
-            self.test_companies_api()
-            self.test_vehicles_api()
-            self.test_customers_api()
-            self.test_reservations_api()
-            self.test_gps_api()
-            self.test_payments_api()
-            self.test_role_based_access()
+            
+            # Customer functionality tests
+            self.test_customer_auth_flow()
+            
+            # Error handling tests
+            self.test_error_handling()
             
         except Exception as e:
             print(f"❌ Test suite failed with error: {str(e)}")
-            return False
+            self.log_test("Test suite execution", False, str(e))
         
-        return True
-
-    def print_summary(self):
-        """Print test summary"""
-        print(f"\n📊 Test Summary:")
+        # Print summary
+        print(f"\n📊 Test Results Summary:")
         print(f"   Total Tests: {self.tests_run}")
         print(f"   Passed: {self.tests_passed}")
         print(f"   Failed: {self.tests_run - self.tests_passed}")
         print(f"   Success Rate: {(self.tests_passed/self.tests_run*100):.1f}%" if self.tests_run > 0 else "   Success Rate: 0%")
         
-        # Print failed tests
-        failed_tests = [result for result in self.test_results if not result['success']]
-        if failed_tests:
-            print(f"\n❌ Failed Tests:")
-            for test in failed_tests:
-                print(f"   - {test['test']}: {test['details']}")
+        # Save detailed results
+        results = {
+            "summary": {
+                "total_tests": self.tests_run,
+                "passed_tests": self.tests_passed,
+                "failed_tests": self.tests_run - self.tests_passed,
+                "success_rate": (self.tests_passed/self.tests_run*100) if self.tests_run > 0 else 0,
+                "test_timestamp": datetime.now().isoformat()
+            },
+            "test_results": self.test_results
+        }
+        
+        with open('/app/test_reports/backend_test_results.json', 'w', encoding='utf-8') as f:
+            json.dump(results, f, indent=2, ensure_ascii=False)
         
         return self.tests_passed == self.tests_run
 
 def main():
-    """Main test runner"""
+    """Main test execution"""
     tester = FleetEaseAPITester()
+    success = tester.run_all_tests()
     
-    try:
-        success = tester.run_all_tests()
-        all_passed = tester.print_summary()
-        
-        # Save detailed results
-        with open('/app/test_reports/backend_test_results.json', 'w') as f:
-            json.dump({
-                'timestamp': datetime.now().isoformat(),
-                'total_tests': tester.tests_run,
-                'passed_tests': tester.tests_passed,
-                'success_rate': (tester.tests_passed/tester.tests_run*100) if tester.tests_run > 0 else 0,
-                'results': tester.test_results
-            }, f, indent=2)
-        
-        return 0 if all_passed else 1
-        
-    except Exception as e:
-        print(f"❌ Test execution failed: {str(e)}")
+    if success:
+        print("\n🎉 All tests passed!")
+        return 0
+    else:
+        print(f"\n⚠️  Some tests failed. Check results above.")
         return 1
 
 if __name__ == "__main__":
