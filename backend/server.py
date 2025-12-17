@@ -411,11 +411,12 @@ async def create_vehicle(vehicle: VehicleCreate, user: dict = Depends(get_curren
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.vehicles.insert_one(vehicle_doc)
-    return VehicleResponse(**{k: v for k, v in vehicle_doc.items() if k != "_id"},
-                          transmission=TransmissionType(vehicle_doc["transmission"]),
-                          fuel_type=FuelType(vehicle_doc["fuel_type"]),
-                          status=VehicleStatus(vehicle_doc["status"]),
-                          created_at=datetime.fromisoformat(vehicle_doc["created_at"]))
+    vehicle_response_data = {k: v for k, v in vehicle_doc.items() if k != "_id"}
+    vehicle_response_data["transmission"] = TransmissionType(vehicle_doc["transmission"])
+    vehicle_response_data["fuel_type"] = FuelType(vehicle_doc["fuel_type"])
+    vehicle_response_data["status"] = VehicleStatus(vehicle_doc["status"])
+    vehicle_response_data["created_at"] = datetime.fromisoformat(vehicle_doc["created_at"])
+    return VehicleResponse(**vehicle_response_data)
 
 @api_router.get("/vehicles", response_model=List[VehicleResponse])
 async def list_vehicles(status: Optional[VehicleStatus] = None, user: dict = Depends(get_current_user)):
