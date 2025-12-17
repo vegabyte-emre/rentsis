@@ -483,8 +483,9 @@ async def create_customer(customer: CustomerCreate, user: dict = Depends(get_cur
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.customers.insert_one(customer_doc)
-    return CustomerResponse(**{k: v for k, v in customer_doc.items() if k != "_id"},
-                           created_at=datetime.fromisoformat(customer_doc["created_at"]))
+    customer_response_data = {k: v for k, v in customer_doc.items() if k != "_id"}
+    customer_response_data["created_at"] = datetime.fromisoformat(customer_doc["created_at"])
+    return CustomerResponse(**customer_response_data)
 
 @api_router.get("/customers", response_model=List[CustomerResponse])
 async def list_customers(user: dict = Depends(get_current_user)):
