@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  Palette,
 } from "lucide-react";
 
 const menuItems = [
@@ -32,7 +33,7 @@ const menuItems = [
   { icon: MapPin, label: "GPS Takip", path: "/gps", roles: ["superadmin", "firma_admin", "operasyon"] },
   { icon: CreditCard, label: "Ödemeler", path: "/payments", roles: ["superadmin", "firma_admin", "muhasebe"] },
   { icon: FileText, label: "Raporlar", path: "/reports", roles: ["superadmin", "firma_admin", "muhasebe"] },
-  { icon: Car, label: "Tema Mağazası", path: "/theme-store", roles: ["superadmin", "firma_admin"] },
+  { icon: Palette, label: "Tema Mağazası", path: "/theme-store", roles: ["superadmin", "firma_admin"] },
   { icon: Settings, label: "Ayarlar", path: "/settings", roles: ["superadmin", "firma_admin"] },
 ];
 
