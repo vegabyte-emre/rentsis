@@ -13,6 +13,15 @@
 - [x] Müşteri hesap paneli (rezervasyonlarım)
 - [x] Rezervasyon formu - kişisel bilgiler, KVKK onayı, ödeme onayı
 - [x] Header/Footer navigasyonu
+- [x] Dinamik tema desteği - admin panelden seçilen temaya göre görünüm değişimi
+
+### Tema Mağazası (YENİ)
+- [x] 6 hazır tema: Klasik Mavi, Elegant Koyu, Taze Yeşil, Royal Mor (Premium), Sunset Orange, Minimalist Gri
+- [x] Tema önizleme ve etkinleştirme
+- [x] İçerik düzenleme: Hero başlık/altbaşlık, logo, iletişim bilgileri
+- [x] Bölüm görünürlük ayarları: İstatistikler, özellikler, popüler araçlar
+- [x] Sosyal medya linkleri (Facebook, Instagram, Twitter)
+- [x] Tema değişikliğinin landing page'e anlık yansıması
 
 ### Yönetim Paneli (Admin Dashboard)
 - [x] Auth sistemi (JWT tabanlı, rol bazlı yetkilendirme)
