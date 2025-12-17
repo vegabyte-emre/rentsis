@@ -133,7 +133,7 @@ class VehicleCreate(BaseModel):
 
 class VehicleResponse(BaseModel):
     id: str
-    company_id: str
+    company_id: Optional[str] = None
     plate: str
     brand: str
     model: str
