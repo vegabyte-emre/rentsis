@@ -1,8 +1,8 @@
 {
-  "timestamp": "2025-12-17T16:48:11.883053",
+  "timestamp": "2025-12-17T16:50:30.297838",
   "total_tests": 18,
-  "passed_tests": 14,
-  "success_rate": 77.77777777777779,
+  "passed_tests": 13,
+  "success_rate": 72.22222222222221,
   "results": [
     {
       "test": "Root Endpoint",
@@ -48,14 +48,14 @@
     },
     {
       "test": "List Companies",
-      "success": true,
+      "success": false,
       "details": "",
       "response_data": null
     },
     {
       "test": "Create Company",
-      "success": false,
-      "details": "Response: {'status_code': 520, 'text': 'Internal Server Error'}",
+      "success": true,
+      "details": "",
       "response_data": null
     },
     {
@@ -67,19 +67,19 @@
     {
       "test": "Create Vehicle",
       "success": false,
-      "details": "Response: {'detail': 'Company ID required for SuperAdmin'}",
+      "details": "Response: {'status_code': 520, 'text': 'Internal Server Error'}",
       "response_data": null
     },
     {
       "test": "List Customers",
-      "success": true,
+      "success": false,
       "details": "",
       "response_data": null
     },
     {
       "test": "Create Customer",
-      "success": false,
-      "details": "Response: {'status_code': 520, 'text': 'Internal Server Error'}",
+      "success": true,
+      "details": "",
       "response_data": null
     },
     {
@@ -108,7 +108,7 @@
     },
     {
       "test": "FirmaAdmin Vehicles Access",
-      "success": true,
+      "success": false,
       "details": "",
       "response_data": null
     }
