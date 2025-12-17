@@ -17,6 +17,7 @@ import { Payments } from "./pages/Payments";
 import { Companies } from "./pages/Companies";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
+import { ThemeStore } from "./pages/ThemeStore";
 
 // Public Pages
 import { Home } from "./pages/public/Home";
@@ -118,6 +119,7 @@ function AppRoutes() {
         <Route path="/payments" element={<Payments />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/theme-store" element={<ThemeStore />} />
         
         {/* SuperAdmin Only */}
         <Route
