@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { Layout } from "./components/layout/Layout";
+
+// Admin Pages
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { Dashboard } from "./pages/Dashboard";
@@ -15,9 +17,19 @@ import { Payments } from "./pages/Payments";
 import { Companies } from "./pages/Companies";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
+
+// Public Pages
+import { Home } from "./pages/public/Home";
+import { VehicleList } from "./pages/public/VehicleList";
+import { VehicleDetail } from "./pages/public/VehicleDetail";
+import { CustomerLogin } from "./pages/public/CustomerLogin";
+import { CustomerRegister } from "./pages/public/CustomerRegister";
+import { CustomerDashboard } from "./pages/public/CustomerDashboard";
+import { Reservation } from "./pages/public/Reservation";
+
 import { Toaster } from "./components/ui/sonner";
 
-// Protected Route Component
+// Protected Route Component (for admin panel)
 function ProtectedRoute({ children, allowedRoles }) {
   const { isAuthenticated, user, loading } = useAuth();
 
@@ -40,7 +52,7 @@ function ProtectedRoute({ children, allowedRoles }) {
   return children;
 }
 
-// Public Route Component (redirect if authenticated)
+// Public Route Component (redirect if authenticated to admin)
 function PublicRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -62,7 +74,16 @@ function PublicRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* ============== PUBLIC ROUTES (Customer Facing) ============== */}
+      <Route path="/" element={<Home />} />
+      <Route path="/araclar" element={<VehicleList />} />
+      <Route path="/arac/:id" element={<VehicleDetail />} />
+      <Route path="/rezervasyon" element={<Reservation />} />
+      <Route path="/musteri/giris" element={<CustomerLogin />} />
+      <Route path="/musteri/kayit" element={<CustomerRegister />} />
+      <Route path="/hesabim" element={<CustomerDashboard />} />
+
+      {/* ============== ADMIN AUTH ROUTES ============== */}
       <Route
         path="/login"
         element={
@@ -80,7 +101,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Routes */}
+      {/* ============== ADMIN PROTECTED ROUTES ============== */}
       <Route
         element={
           <ProtectedRoute>
@@ -109,9 +130,8 @@ function AppRoutes() {
         />
       </Route>
 
-      {/* Default Redirect */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch-all redirect */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

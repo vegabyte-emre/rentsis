@@ -827,6 +827,43 @@ async def health():
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 # Include router
+# ============== PUBLIC ROUTES (No Auth Required) ==============
+@api_router.get("/public/vehicles")
+async def list_public_vehicles(limit: Optional[int] = None, segment: Optional[str] = None):
+    """List available vehicles for public (customers)"""
+    query = {"status": VehicleStatus.AVAILABLE.value}
+    if segment:
+        query["segment"] = segment
+    
+    cursor = db.vehicles.find(query, {"_id": 0})
+    if limit:
+        cursor = cursor.limit(limit)
+    
+    vehicles = await cursor.to_list(1000)
+    result = []
+    for v in vehicles:
+        vehicle_data = dict(v)
+        vehicle_data["transmission"] = TransmissionType(v["transmission"])
+        vehicle_data["fuel_type"] = FuelType(v["fuel_type"])
+        vehicle_data["status"] = VehicleStatus(v["status"])
+        vehicle_data["created_at"] = datetime.fromisoformat(v["created_at"]) if isinstance(v["created_at"], str) else v["created_at"]
+        result.append(VehicleResponse(**vehicle_data))
+    return result
+
+@api_router.get("/public/vehicles/{vehicle_id}")
+async def get_public_vehicle(vehicle_id: str):
+    """Get single vehicle details for public"""
+    vehicle = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    vehicle_data = dict(vehicle)
+    vehicle_data["transmission"] = TransmissionType(vehicle["transmission"])
+    vehicle_data["fuel_type"] = FuelType(vehicle["fuel_type"])
+    vehicle_data["status"] = VehicleStatus(vehicle["status"])
+    vehicle_data["created_at"] = datetime.fromisoformat(vehicle["created_at"]) if isinstance(vehicle["created_at"], str) else vehicle["created_at"]
+    return VehicleResponse(**vehicle_data)
+
 app.include_router(api_router)
 
 app.add_middleware(
