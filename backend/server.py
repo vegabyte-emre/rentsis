@@ -362,7 +362,12 @@ async def list_companies(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Only SuperAdmin can view all companies")
     
     companies = await db.companies.find({}, {"_id": 0}).to_list(1000)
-    return [CompanyResponse(**c, created_at=datetime.fromisoformat(c["created_at"]) if isinstance(c["created_at"], str) else c["created_at"]) for c in companies]
+    result = []
+    for c in companies:
+        company_data = dict(c)
+        company_data["created_at"] = datetime.fromisoformat(c["created_at"]) if isinstance(c["created_at"], str) else c["created_at"]
+        result.append(CompanyResponse(**company_data))
+    return result
 
 @api_router.get("/companies/{company_id}", response_model=CompanyResponse)
 async def get_company(company_id: str, user: dict = Depends(get_current_user)):
