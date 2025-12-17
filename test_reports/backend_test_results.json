@@ -1,101 +1,131 @@
 {
   "summary": {
-    "total_tests": 15,
-    "passed_tests": 11,
-    "failed_tests": 4,
-    "success_rate": 73.33333333333333,
-    "test_timestamp": "2025-12-17T17:16:40.455366"
+    "total_tests": 20,
+    "passed_tests": 19,
+    "failed_tests": 1,
+    "success_rate": 95.0,
+    "test_timestamp": "2025-12-17T17:17:28.065261"
   },
   "test_results": [
     {
       "test": "Root endpoint",
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2025-12-17T17:16:39.451061"
+      "timestamp": "2025-12-17T17:17:27.107157"
     },
     {
       "test": "Health endpoint",
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2025-12-17T17:16:39.524296"
+      "timestamp": "2025-12-17T17:17:27.147063"
     },
     {
       "test": "Admin login",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:16:39.788339"
+      "timestamp": "2025-12-17T17:17:27.411653"
     },
     {
       "test": "Get current admin user",
       "success": true,
       "details": "Role: superadmin",
-      "timestamp": "2025-12-17T17:16:39.826243"
+      "timestamp": "2025-12-17T17:17:27.454435"
     },
     {
       "test": "List public vehicles",
       "success": true,
-      "details": "Found 7 vehicles",
-      "timestamp": "2025-12-17T17:16:39.875505"
+      "details": "Found 8 vehicles",
+      "timestamp": "2025-12-17T17:17:27.489283"
     },
     {
       "test": "List public vehicles with limit",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:16:39.912733"
+      "timestamp": "2025-12-17T17:17:27.528653"
     },
     {
       "test": "Get single public vehicle",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:16:39.952836"
+      "timestamp": "2025-12-17T17:17:27.565761"
     },
     {
       "test": "Create vehicle",
-      "success": false,
-      "details": "Status: 200, Response: {'id': '851a7bf5-95cb-4a76-bb62-51a35e16aec3', 'company_id': None, 'plate': '34TEST123', 'brand': 'Toyota', 'model': 'Corolla', 'year': 2023, 'segment': 'Ekonomi', 'transmission': 'otomatik', 'fuel_type': 'benzin', 'seat_count': 5, 'door_count': 4, 'daily_rate': 250.0, 'color': 'Beyaz', 'mileage': 15000, 'status': 'available', 'image_url': None, 'created_at': '2025-12-17T17:16:39.988834Z'}",
-      "timestamp": "2025-12-17T17:16:39.993381"
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.605877"
+    },
+    {
+      "test": "List admin vehicles",
+      "success": true,
+      "details": "Found 11 vehicles",
+      "timestamp": "2025-12-17T17:17:27.643877"
+    },
+    {
+      "test": "Get single admin vehicle",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.682399"
     },
     {
       "test": "Create customer",
-      "success": false,
-      "details": "Status: 200, Response: {'id': 'd4f8c1e8-55df-4160-9c4b-a8f49b150aac', 'company_id': None, 'tc_no': '12345678901', 'full_name': 'Test Müşteri', 'email': 'test@customer.com', 'phone': '0555 123 4567', 'address': 'Test Adres, İstanbul', 'license_no': None, 'license_class': None, 'created_at': '2025-12-17T17:16:40.034161Z'}",
-      "timestamp": "2025-12-17T17:16:40.038685"
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.719166"
     },
     {
-      "test": "Reservation flow",
-      "success": false,
-      "details": "Missing prerequisites (admin token, vehicle, or customer)",
-      "timestamp": "2025-12-17T17:16:40.038699"
+      "test": "List customers",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.755852"
+    },
+    {
+      "test": "Create reservation",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.792416"
+    },
+    {
+      "test": "List reservations",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.830455"
+    },
+    {
+      "test": "Get single reservation",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:27.875847"
     },
     {
       "test": "Dashboard stats",
       "success": true,
-      "details": "Vehicles: 10, Customers: 6, Reservations: 2",
-      "timestamp": "2025-12-17T17:16:40.080519"
+      "details": "Vehicles: 11, Customers: 7, Reservations: 3",
+      "timestamp": "2025-12-17T17:17:27.919135"
     },
     {
       "test": "Customer registration",
       "success": false,
-      "details": "Status: 200, Response: {'access_token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzNDc1ZjNmNC01NzM2LTQ2OTEtOGFkYS0wZDE1NDE5MTRmOTEiLCJyb2xlIjoibXVzdGVyaSIsImV4cCI6MTc2NjA3ODIwMH0.dqw6_dk2TM9fKu7e-xs7ONoO_rZjFvjGcaWZCoEek58', 'token_type': 'bearer', 'user': {'id': '3475f3f4-5736-4691-8ada-0d1541914f91', 'email': 'newcustomer@test.com', 'full_name': 'Yeni Müşteri', 'role': 'musteri', 'company_id': None, 'phone': '0555 987 6543', 'is_active': True, 'created_at': '2025-12-17T17:16:40.335624Z'}}",
-      "timestamp": "2025-12-17T17:16:40.340746"
+      "details": "Status: 400, Response: {'detail': 'Email already registered'}",
+      "timestamp": "2025-12-17T17:17:27.957199"
     },
     {
       "test": "Invalid endpoint returns 404",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:16:40.378209"
+      "timestamp": "2025-12-17T17:17:27.994452"
     },
     {
       "test": "Unauthorized access blocked",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:16:40.417183"
+      "timestamp": "2025-12-17T17:17:28.029763"
     },
     {
       "test": "Invalid vehicle ID returns 404",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:16:40.455341"
+      "timestamp": "2025-12-17T17:17:28.065235"
     }
   ]
 }
