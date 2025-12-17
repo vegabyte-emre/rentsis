@@ -1,131 +1,137 @@
 {
   "summary": {
-    "total_tests": 20,
-    "passed_tests": 19,
-    "failed_tests": 1,
-    "success_rate": 95.0,
-    "test_timestamp": "2025-12-17T17:17:28.065261"
+    "total_tests": 21,
+    "passed_tests": 21,
+    "failed_tests": 0,
+    "success_rate": 100.0,
+    "test_timestamp": "2025-12-17T17:17:40.667612"
   },
   "test_results": [
     {
       "test": "Root endpoint",
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2025-12-17T17:17:27.107157"
+      "timestamp": "2025-12-17T17:17:39.129304"
     },
     {
       "test": "Health endpoint",
       "success": true,
       "details": "Status: 200",
-      "timestamp": "2025-12-17T17:17:27.147063"
+      "timestamp": "2025-12-17T17:17:39.170121"
     },
     {
       "test": "Admin login",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.411653"
+      "timestamp": "2025-12-17T17:17:39.432290"
     },
     {
       "test": "Get current admin user",
       "success": true,
       "details": "Role: superadmin",
-      "timestamp": "2025-12-17T17:17:27.454435"
+      "timestamp": "2025-12-17T17:17:39.474003"
     },
     {
       "test": "List public vehicles",
       "success": true,
       "details": "Found 8 vehicles",
-      "timestamp": "2025-12-17T17:17:27.489283"
+      "timestamp": "2025-12-17T17:17:39.510992"
     },
     {
       "test": "List public vehicles with limit",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.528653"
+      "timestamp": "2025-12-17T17:17:39.549651"
     },
     {
       "test": "Get single public vehicle",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.565761"
+      "timestamp": "2025-12-17T17:17:39.594272"
     },
     {
       "test": "Create vehicle",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.605877"
+      "timestamp": "2025-12-17T17:17:39.630497"
     },
     {
       "test": "List admin vehicles",
       "success": true,
-      "details": "Found 11 vehicles",
-      "timestamp": "2025-12-17T17:17:27.643877"
+      "details": "Found 12 vehicles",
+      "timestamp": "2025-12-17T17:17:39.668070"
     },
     {
       "test": "Get single admin vehicle",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.682399"
+      "timestamp": "2025-12-17T17:17:39.708792"
     },
     {
       "test": "Create customer",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.719166"
+      "timestamp": "2025-12-17T17:17:39.748312"
     },
     {
       "test": "List customers",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.755852"
+      "timestamp": "2025-12-17T17:17:39.784304"
     },
     {
       "test": "Create reservation",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.792416"
+      "timestamp": "2025-12-17T17:17:39.865060"
     },
     {
       "test": "List reservations",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.830455"
+      "timestamp": "2025-12-17T17:17:39.908039"
     },
     {
       "test": "Get single reservation",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.875847"
+      "timestamp": "2025-12-17T17:17:39.945066"
     },
     {
       "test": "Dashboard stats",
       "success": true,
-      "details": "Vehicles: 11, Customers: 7, Reservations: 3",
-      "timestamp": "2025-12-17T17:17:27.919135"
+      "details": "Vehicles: 12, Customers: 8, Reservations: 4",
+      "timestamp": "2025-12-17T17:17:40.028092"
     },
     {
       "test": "Customer registration",
-      "success": false,
-      "details": "Status: 400, Response: {'detail': 'Email already registered'}",
-      "timestamp": "2025-12-17T17:17:27.957199"
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:40.291188"
+    },
+    {
+      "test": "Customer login",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-17T17:17:40.552667"
     },
     {
       "test": "Invalid endpoint returns 404",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:27.994452"
+      "timestamp": "2025-12-17T17:17:40.590491"
     },
     {
       "test": "Unauthorized access blocked",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:28.029763"
+      "timestamp": "2025-12-17T17:17:40.627466"
     },
     {
       "test": "Invalid vehicle ID returns 404",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-17T17:17:28.065235"
+      "timestamp": "2025-12-17T17:17:40.667587"
     }
   ]
 }
