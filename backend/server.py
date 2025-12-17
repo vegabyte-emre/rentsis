@@ -352,8 +352,9 @@ async def create_company(company: CompanyCreate, user: dict = Depends(get_curren
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.companies.insert_one(company_doc)
-    return CompanyResponse(**{k: v for k, v in company_doc.items() if k != "_id"},
-                          created_at=datetime.fromisoformat(company_doc["created_at"]))
+    company_response_data = {k: v for k, v in company_doc.items() if k != "_id"}
+    company_response_data["created_at"] = datetime.fromisoformat(company_doc["created_at"])
+    return CompanyResponse(**company_response_data)
 
 @api_router.get("/companies", response_model=List[CompanyResponse])
 async def list_companies(user: dict = Depends(get_current_user)):
