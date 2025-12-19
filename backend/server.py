@@ -359,35 +359,72 @@ async def get_me(user: dict = Depends(get_current_user)):
         created_at=datetime.fromisoformat(user["created_at"]) if isinstance(user["created_at"], str) else user["created_at"]
     )
 
-# ============== COMPANY ROUTES ==============
-@api_router.post("/companies", response_model=CompanyResponse)
-async def create_company(company: CompanyCreate, user: dict = Depends(get_current_user)):
+# ============== SUPERADMIN COMPANY ROUTES ==============
+@api_router.post("/superadmin/companies", response_model=CompanyResponse)
+async def create_company_superadmin(company: CompanyCreate, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Create a new company with auto-provisioning"""
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can create companies")
     
-    existing = await db.companies.find_one({"code": company.code})
+    # Check if code or subdomain already exists
+    existing = await db.companies.find_one({"$or": [{"code": company.code}, {"subdomain": company.subdomain}]})
     if existing:
-        raise HTTPException(status_code=400, detail="Company code already exists")
+        raise HTTPException(status_code=400, detail="Company code or subdomain already exists")
     
     company_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
     company_doc = {
         "id": company_id,
         "name": company.name,
         "code": company.code,
+        "domain": company.domain,
+        "subdomain": company.subdomain or company.code,
         "address": company.address,
         "phone": company.phone,
         "email": company.email,
         "tax_number": company.tax_number,
+        "subscription_plan": company.subscription_plan.value,
+        "status": CompanyStatus.PENDING.value,
         "is_active": True,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "vehicle_count": 0,
+        "customer_count": 0,
+        "admin_email": company.admin_email,
+        "portainer_stack_id": None,
+        "created_by": user["id"],
+        "created_at": now,
+        "updated_at": now
     }
     await db.companies.insert_one(company_doc)
+    
+    # Auto-create admin user for the company if credentials provided
+    if company.admin_email and company.admin_password:
+        existing_user = await db.users.find_one({"email": company.admin_email})
+        if not existing_user:
+            admin_user_id = str(uuid.uuid4())
+            admin_user_doc = {
+                "id": admin_user_id,
+                "email": company.admin_email,
+                "password_hash": get_password_hash(company.admin_password),
+                "full_name": company.admin_full_name or f"{company.name} Admin",
+                "role": UserRole.FIRMA_ADMIN.value,
+                "company_id": company_id,
+                "phone": company.phone,
+                "is_active": True,
+                "created_at": now
+            }
+            await db.users.insert_one(admin_user_doc)
+    
     company_response_data = {k: v for k, v in company_doc.items() if k != "_id"}
     company_response_data["created_at"] = datetime.fromisoformat(company_doc["created_at"])
+    company_response_data["updated_at"] = datetime.fromisoformat(company_doc["updated_at"])
+    company_response_data["subscription_plan"] = SubscriptionPlan(company_doc["subscription_plan"])
+    company_response_data["status"] = CompanyStatus(company_doc["status"])
     return CompanyResponse(**company_response_data)
 
-@api_router.get("/companies", response_model=List[CompanyResponse])
-async def list_companies(user: dict = Depends(get_current_user)):
+@api_router.get("/superadmin/companies", response_model=List[CompanyResponse])
+async def list_companies_superadmin(user: dict = Depends(get_current_user)):
+    """SuperAdmin: List all companies with stats"""
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can view all companies")
     
@@ -395,9 +432,135 @@ async def list_companies(user: dict = Depends(get_current_user)):
     result = []
     for c in companies:
         company_data = dict(c)
+        # Get vehicle and customer counts
+        vehicle_count = await db.vehicles.count_documents({"company_id": c["id"]})
+        customer_count = await db.customers.count_documents({"company_id": c["id"]})
+        company_data["vehicle_count"] = vehicle_count
+        company_data["customer_count"] = customer_count
         company_data["created_at"] = datetime.fromisoformat(c["created_at"]) if isinstance(c["created_at"], str) else c["created_at"]
+        if c.get("updated_at"):
+            company_data["updated_at"] = datetime.fromisoformat(c["updated_at"]) if isinstance(c["updated_at"], str) else c["updated_at"]
+        company_data["subscription_plan"] = SubscriptionPlan(c.get("subscription_plan", "free"))
+        company_data["status"] = CompanyStatus(c.get("status", "active"))
         result.append(CompanyResponse(**company_data))
     return result
+
+@api_router.get("/superadmin/companies/{company_id}", response_model=CompanyResponse)
+async def get_company_superadmin(company_id: str, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Get company details"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view company details")
+    
+    company = await db.companies.find_one({"id": company_id}, {"_id": 0})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    company_data = dict(company)
+    vehicle_count = await db.vehicles.count_documents({"company_id": company_id})
+    customer_count = await db.customers.count_documents({"company_id": company_id})
+    company_data["vehicle_count"] = vehicle_count
+    company_data["customer_count"] = customer_count
+    company_data["created_at"] = datetime.fromisoformat(company["created_at"]) if isinstance(company["created_at"], str) else company["created_at"]
+    if company.get("updated_at"):
+        company_data["updated_at"] = datetime.fromisoformat(company["updated_at"]) if isinstance(company["updated_at"], str) else company["updated_at"]
+    company_data["subscription_plan"] = SubscriptionPlan(company.get("subscription_plan", "free"))
+    company_data["status"] = CompanyStatus(company.get("status", "active"))
+    return CompanyResponse(**company_data)
+
+@api_router.put("/superadmin/companies/{company_id}", response_model=CompanyResponse)
+async def update_company_superadmin(company_id: str, company: CompanyCreate, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Update company details"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can update companies")
+    
+    existing = await db.companies.find_one({"id": company_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    update_doc = {
+        "name": company.name,
+        "code": company.code,
+        "domain": company.domain,
+        "subdomain": company.subdomain or company.code,
+        "address": company.address,
+        "phone": company.phone,
+        "email": company.email,
+        "tax_number": company.tax_number,
+        "subscription_plan": company.subscription_plan.value,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.companies.update_one({"id": company_id}, {"$set": update_doc})
+    return await get_company_superadmin(company_id, user)
+
+@api_router.patch("/superadmin/companies/{company_id}/status")
+async def update_company_status(company_id: str, status: CompanyStatus, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Update company status (activate/suspend/delete)"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can change company status")
+    
+    result = await db.companies.update_one(
+        {"id": company_id},
+        {"$set": {
+            "status": status.value,
+            "is_active": status == CompanyStatus.ACTIVE,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"message": "Company status updated", "status": status.value}
+
+@api_router.delete("/superadmin/companies/{company_id}")
+async def delete_company_superadmin(company_id: str, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Delete (soft delete) a company"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can delete companies")
+    
+    result = await db.companies.update_one(
+        {"id": company_id},
+        {"$set": {
+            "status": CompanyStatus.DELETED.value,
+            "is_active": False,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return {"message": "Company deleted successfully"}
+
+@api_router.get("/superadmin/stats")
+async def get_superadmin_stats(user: dict = Depends(get_current_user)):
+    """SuperAdmin: Get platform-wide statistics"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view platform stats")
+    
+    total_companies = await db.companies.count_documents({"status": {"$ne": CompanyStatus.DELETED.value}})
+    active_companies = await db.companies.count_documents({"status": CompanyStatus.ACTIVE.value})
+    pending_companies = await db.companies.count_documents({"status": CompanyStatus.PENDING.value})
+    total_vehicles = await db.vehicles.count_documents({})
+    total_customers = await db.customers.count_documents({})
+    total_reservations = await db.reservations.count_documents({})
+    total_users = await db.users.count_documents({})
+    
+    return {
+        "total_companies": total_companies,
+        "active_companies": active_companies,
+        "pending_companies": pending_companies,
+        "total_vehicles": total_vehicles,
+        "total_customers": total_customers,
+        "total_reservations": total_reservations,
+        "total_users": total_users
+    }
+
+# ============== LEGACY COMPANY ROUTES (for backward compatibility) ==============
+@api_router.post("/companies", response_model=CompanyResponse)
+async def create_company(company: CompanyCreate, user: dict = Depends(get_current_user)):
+    return await create_company_superadmin(company, user)
+
+@api_router.get("/companies", response_model=List[CompanyResponse])
+async def list_companies(user: dict = Depends(get_current_user)):
+    return await list_companies_superadmin(user)
 
 @api_router.get("/companies/{company_id}", response_model=CompanyResponse)
 async def get_company(company_id: str, user: dict = Depends(get_current_user)):
@@ -406,6 +569,10 @@ async def get_company(company_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Company not found")
     company_data = dict(company)
     company_data["created_at"] = datetime.fromisoformat(company["created_at"]) if isinstance(company["created_at"], str) else company["created_at"]
+    if company.get("updated_at"):
+        company_data["updated_at"] = datetime.fromisoformat(company["updated_at"]) if isinstance(company["updated_at"], str) else company["updated_at"]
+    company_data["subscription_plan"] = SubscriptionPlan(company.get("subscription_plan", "free"))
+    company_data["status"] = CompanyStatus(company.get("status", "active"))
     return CompanyResponse(**company_data)
 
 # ============== VEHICLE ROUTES ==============
