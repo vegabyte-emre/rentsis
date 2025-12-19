@@ -128,6 +128,16 @@ class CompanyCreate(BaseModel):
     admin_password: Optional[str] = None
     admin_full_name: Optional[str] = None
 
+class PortainerPorts(BaseModel):
+    frontend: Optional[int] = None
+    backend: Optional[int] = None
+    mongodb: Optional[int] = None
+
+class PortainerUrls(BaseModel):
+    frontend: Optional[str] = None
+    backend: Optional[str] = None
+    api: Optional[str] = None
+
 class CompanyResponse(BaseModel):
     id: str
     name: str
@@ -144,7 +154,11 @@ class CompanyResponse(BaseModel):
     vehicle_count: int = 0
     customer_count: int = 0
     admin_email: Optional[str] = None
-    portainer_stack_id: Optional[str] = None
+    portainer_stack_id: Optional[int] = None  # Portainer returns integer ID
+    stack_name: Optional[str] = None
+    ports: Optional[PortainerPorts] = None
+    urls: Optional[PortainerUrls] = None
+    port_offset: Optional[int] = None
     created_by: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
