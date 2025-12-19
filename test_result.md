@@ -205,3 +205,94 @@ test_plan:
   - Test company status change (activate/suspend/delete)
   - Verify Firma Admin panel doesn't have 'Firmalar' menu
   - Test existing functionality (vehicles, customers, reservations) still works
+
+## Portainer Integration Implementation
+
+user_problem_statement: SuperAdmin panelinden Portainer'a IP+Port bazlı otomatik firma deployment. Her firma eklendiğinde MongoDB container'ı otomatik deploy edilmeli.
+
+backend:
+  - task: "Portainer Service Module"
+    implemented: true
+    working: true
+    file: "backend/services/portainer_service.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Portainer API integration with stack creation, deletion, status check"
+
+  - task: "Provision Company API"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "POST /api/superadmin/companies/{id}/provision - Creates Docker stack in Portainer"
+
+  - task: "Portainer Status API"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET /api/superadmin/portainer/status - Returns connection status and stack count"
+
+frontend:
+  - task: "Dashboard Portainer Status Card"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/superadmin/SuperAdminDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Shows Portainer connection status with green/red indicator"
+
+  - task: "Companies Table Stack Info"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/superadmin/SuperAdminCompanies.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Shows Stack ID and MongoDB port for provisioned companies, Deploy edilmedi for others"
+
+  - task: "Provision/Deprovision Actions"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/superadmin/SuperAdminCompanies.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Dropdown menu has Portainer'a Deploy Et and Stack'i Kaldır buttons"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 5
+  run_ui: true
+
+test_plan:
+  - Test Portainer connection status endpoint
+  - Test company provisioning creates Docker stack
+  - Verify MongoDB container is running on correct port
+  - Test deprovisioning removes Docker stack
+  - Verify UI shows correct stack info for provisioned companies
