@@ -26,7 +26,6 @@ import {
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", roles: ["superadmin", "firma_admin", "operasyon", "muhasebe"] },
-  { icon: Building2, label: "Firmalar", path: "/companies", roles: ["superadmin"] },
   { icon: Car, label: "Araçlar", path: "/vehicles", roles: ["superadmin", "firma_admin", "operasyon", "personel"] },
   { icon: Users, label: "Müşteriler", path: "/customers", roles: ["superadmin", "firma_admin", "operasyon"] },
   { icon: Calendar, label: "Rezervasyonlar", path: "/reservations", roles: ["superadmin", "firma_admin", "operasyon", "personel"] },
