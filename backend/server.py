@@ -487,6 +487,11 @@ async def get_company_superadmin(company_id: str, user: dict = Depends(get_curre
         company_data["updated_at"] = datetime.fromisoformat(company["updated_at"]) if isinstance(company["updated_at"], str) else company["updated_at"]
     company_data["subscription_plan"] = SubscriptionPlan(company.get("subscription_plan", "free"))
     company_data["status"] = CompanyStatus(company.get("status", "active"))
+    # Handle ports and urls as nested objects
+    if company.get("ports") and isinstance(company["ports"], dict):
+        company_data["ports"] = PortainerPorts(**company["ports"])
+    if company.get("urls") and isinstance(company["urls"], dict):
+        company_data["urls"] = PortainerUrls(**company["urls"])
     return CompanyResponse(**company_data)
 
 @api_router.put("/superadmin/companies/{company_id}", response_model=CompanyResponse)
