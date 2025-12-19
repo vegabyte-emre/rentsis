@@ -211,41 +211,66 @@ export function NewCompany() {
                 Domain Ayarları
               </CardTitle>
               <CardDescription className="text-slate-400">
-                Firmanın web adresi yapılandırması
+                Firmanın web adresi yapılandırması (en az birini doldurun)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Custom Domain - Primary Option */}
+              <div className="space-y-2 p-4 bg-purple-900/20 border border-purple-500/30 rounded-lg">
+                <Label className="text-purple-300 font-medium">Özel Domain (Önerilen)</Label>
+                <Input
+                  value={formData.domain}
+                  onChange={(e) => handleChange("domain", e.target.value.toLowerCase().replace(/^www\./, ""))}
+                  placeholder="bitlisarackiralama.com"
+                  className="bg-slate-900/50 border-slate-600 text-white"
+                />
+                <p className="text-xs text-slate-400">Firmanın kendi domain adresi. DNS ayarları yapılmalıdır.</p>
+                {formData.domain && (
+                  <div className="mt-3 p-3 bg-slate-900/50 rounded border border-slate-700">
+                    <p className="text-xs text-slate-400 mb-2">Gerekli DNS Kayıtları (Metunic/Cloudflare):</p>
+                    <ul className="text-xs text-slate-300 space-y-1 font-mono">
+                      <li>A @ → 72.61.158.147</li>
+                      <li>A www → 72.61.158.147</li>
+                      <li>A panel → 72.61.158.147</li>
+                      <li>A api → 72.61.158.147</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* Subdomain - Secondary Option */}
               <div className="space-y-2">
-                <Label className="text-slate-300">Subdomain *</Label>
+                <Label className="text-slate-300">Subdomain (Alternatif)</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     value={formData.subdomain}
                     onChange={(e) => handleChange("subdomain", e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
-                    placeholder="abc"
-                    required
+                    placeholder="bitlis"
                     className="bg-slate-900/50 border-slate-600 text-white font-mono max-w-[200px]"
                   />
                   <span className="text-slate-400">.rentafleet.com</span>
                 </div>
-                <p className="text-xs text-slate-500">Firma paneli ve web sitesi bu adresten erişilecek</p>
+                <p className="text-xs text-slate-500">Özel domain yoksa bu adres kullanılır</p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-slate-300">Özel Domain (Opsiyonel)</Label>
-                <Input
-                  value={formData.domain}
-                  onChange={(e) => handleChange("domain", e.target.value)}
-                  placeholder="www.abcrentacar.com"
-                  className="bg-slate-900/50 border-slate-600 text-white"
-                />
-                <p className="text-xs text-slate-500">İleride eklenebilir. DNS ayarları gerektirir.</p>
-              </div>
+
+              {/* Preview */}
               <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
                 <h4 className="font-medium text-white mb-2">Oluşturulacak Adresler:</h4>
-                <ul className="space-y-1 text-sm text-slate-400">
-                  <li>• Web Sitesi: <span className="text-purple-400">{formData.subdomain || "[subdomain]"}.rentafleet.com</span></li>
-                  <li>• Admin Panel: <span className="text-purple-400">{formData.subdomain || "[subdomain]"}.rentafleet.com/panel</span></li>
-                  <li>• API: <span className="text-purple-400">{formData.subdomain || "[subdomain]"}.rentafleet.com/api</span></li>
-                </ul>
+                {formData.domain ? (
+                  <ul className="space-y-1 text-sm text-slate-400">
+                    <li>• Web Sitesi: <span className="text-green-400">https://{formData.domain}</span></li>
+                    <li>• Admin Panel: <span className="text-green-400">https://panel.{formData.domain}</span></li>
+                    <li>• API: <span className="text-green-400">https://api.{formData.domain}</span></li>
+                  </ul>
+                ) : formData.subdomain ? (
+                  <ul className="space-y-1 text-sm text-slate-400">
+                    <li>• Web Sitesi: <span className="text-purple-400">{formData.subdomain}.rentafleet.com</span></li>
+                    <li>• Admin Panel: <span className="text-purple-400">panel.{formData.subdomain}.rentafleet.com</span></li>
+                    <li>• API: <span className="text-purple-400">api.{formData.subdomain}.rentafleet.com</span></li>
+                  </ul>
+                ) : (
+                  <p className="text-sm text-yellow-400">⚠️ Domain veya subdomain giriniz</p>
+                )}
               </div>
               <div className="flex justify-between pt-4">
                 <Button type="button" variant="outline" onClick={() => setStep(1)} className="border-slate-600 text-slate-300 hover:bg-slate-700">
