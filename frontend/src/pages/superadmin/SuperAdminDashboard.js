@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Building2, Car, Users, Calendar, TrendingUp, Activity, Server, Globe } from "lucide-react";
+import { Building2, Car, Users, Calendar, TrendingUp, Activity, Server, Globe, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export function SuperAdminDashboard() {
   const [stats, setStats] = useState(null);
+  const [portainerStatus, setPortainerStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchStats();
+    fetchPortainerStatus();
   }, []);
 
   const fetchStats = async () => {
@@ -22,6 +24,15 @@ export function SuperAdminDashboard() {
       toast.error("İstatistikler yüklenirken hata oluştu");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPortainerStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/superadmin/portainer/status`);
+      setPortainerStatus(response.data);
+    } catch (error) {
+      setPortainerStatus({ connected: false, error: "Bağlantı hatası" });
     }
   };
 
