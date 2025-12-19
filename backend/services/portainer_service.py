@@ -104,10 +104,8 @@ networks:
 
 def get_minimal_compose_template(company_code: str, company_name: str, port_offset: int) -> str:
     """
-    Generate minimal Docker Compose YAML - just MongoDB + simple API
-    Better for initial testing without pre-built images
+    Generate minimal Docker Compose YAML - MongoDB only for testing
     """
-    backend_port = BASE_BACKEND_PORT + port_offset
     mongo_port = BASE_MONGO_PORT + port_offset
     
     return f"""version: '3.8'
@@ -125,11 +123,6 @@ services:
       - "{mongo_port}:27017"
     networks:
       - {company_code}_network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/{company_code}_db --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   {company_code}_mongo_data:
@@ -137,6 +130,91 @@ volumes:
 networks:
   {company_code}_network:
     driver: bridge
+"""
+
+
+def get_full_company_stack_template(company_code: str, company_name: str, domain: str, port_offset: int) -> str:
+    """
+    Generate full Rent A Car stack with Traefik labels for domain routing
+    Includes: MongoDB + Backend + Frontend with SSL support
+    """
+    frontend_port = BASE_FRONTEND_PORT + port_offset
+    backend_port = BASE_BACKEND_PORT + port_offset
+    mongo_port = BASE_MONGO_PORT + port_offset
+    
+    # Sanitize company code for container names
+    safe_code = company_code.replace('-', '').replace('_', '')
+    
+    return f"""version: '3.8'
+
+services:
+  {safe_code}_mongodb:
+    image: mongo:6.0
+    container_name: {company_code}_mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE={company_code}_db
+    volumes:
+      - {company_code}_mongo_data:/data/db
+    ports:
+      - "{mongo_port}:27017"
+    networks:
+      - {company_code}_network
+      - traefik_network
+
+  {safe_code}_backend:
+    image: tiangolo/uvicorn-gunicorn-fastapi:python3.11-slim
+    container_name: {company_code}_backend
+    restart: unless-stopped
+    environment:
+      - MONGO_URL=mongodb://{safe_code}_mongodb:27017
+      - DB_NAME={company_code}_db
+      - JWT_SECRET={company_code}_jwt_secret_2024
+      - COMPANY_CODE={company_code}
+      - COMPANY_NAME={company_name}
+    ports:
+      - "{backend_port}:80"
+    depends_on:
+      - {safe_code}_mongodb
+    networks:
+      - {company_code}_network
+      - traefik_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{safe_code}-api.rule=Host(`api.{domain}`)"
+      - "traefik.http.routers.{safe_code}-api.entrypoints=websecure"
+      - "traefik.http.routers.{safe_code}-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.{safe_code}-api.loadbalancer.server.port=80"
+
+  {safe_code}_frontend:
+    image: nginx:alpine
+    container_name: {company_code}_frontend
+    restart: unless-stopped
+    ports:
+      - "{frontend_port}:80"
+    depends_on:
+      - {safe_code}_backend
+    networks:
+      - {company_code}_network
+      - traefik_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{safe_code}-web.rule=Host(`{domain}`) || Host(`www.{domain}`)"
+      - "traefik.http.routers.{safe_code}-web.entrypoints=websecure"
+      - "traefik.http.routers.{safe_code}-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.{safe_code}-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.{safe_code}-panel.rule=Host(`panel.{domain}`)"
+      - "traefik.http.routers.{safe_code}-panel.entrypoints=websecure"
+      - "traefik.http.routers.{safe_code}-panel.tls.certresolver=letsencrypt"
+
+volumes:
+  {company_code}_mongo_data:
+
+networks:
+  {company_code}_network:
+    driver: bridge
+  traefik_network:
+    external: true
 """
 
 
