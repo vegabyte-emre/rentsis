@@ -131,7 +131,7 @@ function AppRoutes() {
 
       {/* ============== COMPANY ADMIN AUTH ROUTES ============== */}
       <Route
-        path="/login"
+        path="/admin/login"
         element={
           <PublicRoute>
             <Login />
@@ -139,7 +139,7 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/register"
+        path="/admin/register"
         element={
           <PublicRoute>
             <Register />
@@ -155,17 +155,21 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/vehicles" element={<Vehicles />} />
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/reservations" element={<Reservations />} />
-        <Route path="/reservations/new" element={<NewReservation />} />
-        <Route path="/gps" element={<GPS />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/reports" element={<Reports />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/theme-store" element={<ThemeStore />} />
+        <Route path="/admin/dashboard" element={<Dashboard />} />
+        <Route path="/admin/vehicles" element={<Vehicles />} />
+        <Route path="/admin/customers" element={<Customers />} />
+        <Route path="/admin/reservations" element={<Reservations />} />
+        <Route path="/admin/reservations/new" element={<NewReservation />} />
+        <Route path="/admin/gps" element={<GPS />} />
+        <Route path="/admin/payments" element={<Payments />} />
+        <Route path="/admin/reports" element={<Reports />} />
+        <Route path="/admin/settings" element={<Settings />} />
+        <Route path="/admin/theme-store" element={<ThemeStore />} />
       </Route>
+      
+      {/* Legacy redirect for old /login path */}
+      <Route path="/login" element={<Navigate to="/admin/login" replace />} />
+      <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
 
       {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
