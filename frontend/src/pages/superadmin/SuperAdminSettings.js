@@ -136,6 +136,62 @@ export function SuperAdminSettings() {
         </CardContent>
       </Card>
 
+      {/* SuperAdmin Panel Deploy */}
+      <Card className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-purple-500/30">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Upload className="h-5 w-5 text-purple-400" />
+            SuperAdmin Panel Deploy
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            KVM sunucusundaki SuperAdmin panelini güncelle
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 bg-slate-900/50 rounded-lg">
+              <p className="text-sm text-slate-400">Frontend URL</p>
+              <a href="http://72.61.158.147:9000" target="_blank" rel="noopener noreferrer" 
+                 className="text-blue-400 hover:underline flex items-center gap-1 text-sm">
+                http://72.61.158.147:9000 <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+            <div className="p-3 bg-slate-900/50 rounded-lg">
+              <p className="text-sm text-slate-400">Backend URL</p>
+              <a href="http://72.61.158.147:9001/api/health" target="_blank" rel="noopener noreferrer" 
+                 className="text-green-400 hover:underline flex items-center gap-1 text-sm">
+                http://72.61.158.147:9001 <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+          <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <p className="text-sm text-slate-300 mb-2">ℹ️ Bu işlem:</p>
+            <ul className="text-sm text-slate-400 space-y-1">
+              <li>• Frontend'i doğru backend URL ile build eder</li>
+              <li>• Build dosyalarını KVM sunucusuna yükler</li>
+              <li>• ~30 saniye sürebilir</li>
+            </ul>
+          </div>
+          <Button 
+            onClick={deployFrontendToKVM} 
+            disabled={deployingFrontend}
+            className="bg-purple-600 hover:bg-purple-700 w-full"
+          >
+            {deployingFrontend ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Deploy ediliyor...
+              </>
+            ) : (
+              <>
+                <Monitor className="h-4 w-4 mr-2" />
+                Frontend'i KVM'e Deploy Et
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Portainer Settings */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
