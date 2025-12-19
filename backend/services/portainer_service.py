@@ -832,6 +832,24 @@ class PortainerService:
             except Exception as e:
                 return {'error': str(e)}
 
+    async def restart_container_by_id(self, container_id: str) -> Dict[str, Any]:
+        """
+        Restart a container by its ID directly
+        """
+        restart_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/{container_id}/restart"
+        
+        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+            try:
+                url = f"{self.base_url}/api/{restart_endpoint}"
+                response = await client.post(url, headers=self.headers)
+                
+                if response.status_code < 400:
+                    return {'success': True}
+                else:
+                    return {'error': response.text, 'status_code': response.status_code}
+            except Exception as e:
+                return {'error': str(e)}
+
 
 # Singleton instance
 portainer_service = PortainerService()
