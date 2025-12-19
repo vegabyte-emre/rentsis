@@ -1,200 +1,202 @@
 <analysis>**original_problem_statement:**
-The user initially requested a multi-tenant corporate car rental platform. The scope has evolved into a highly automated, multi-tenant architecture. The primary goal is to create a SuperAdmin Panel that can provision, deploy, and manage entire, isolated Rent A Car application stacks for different tenants on a user-provided KVM server managed by Portainer.
+The user's primary goal is to build a SuperAdmin Panel to function as a multi-tenant corporate car rental platform. This central panel must be capable of provisioning, deploying, and managing complete, isolated Rent A Car application stacks (Frontend, Backend, Database) for different tenants. These deployments are to be made on a user-provided KVM server, which is managed by Portainer, with Traefik handling domain routing and SSL.
 
 **PRODUCT REQUIREMENTS:**
-- **SuperAdmin Panel:** A central dashboard to manage tenant companies.
-- **Tenant Provisioning:** The SuperAdmin must be able to add a new tenant company, which automatically deploys a complete, independent application stack (Frontend, Backend, Database) as Docker containers on a Portainer-managed server.
-- **Domain Management:** Tenant applications should be accessible via custom domains (e.g., ), with automatic reverse proxying and SSL certificate generation handled by Traefik.
-- **Infrastructure:** The entire system runs on the user's KVM server () with Portainer and Traefik.
+- **SuperAdmin Panel:** A central dashboard for managing tenant companies.
+- **Automated Tenant Provisioning:** Adding a new tenant company via the SuperAdmin panel must automatically deploy a full, independent application stack (React Frontend, FastAPI Backend, MongoDB) as Docker containers on the user's Portainer-managed server.
+- **Custom Domain Management:** Tenant applications must be accessible via custom domains (e.g., , ), with Traefik automatically managing reverse proxying and SSL certificates.
+- **URL Structure:** For each tenant, the landing page should be at , the admin panel at , and the API at .
+- **Infrastructure:** The system runs on the user's KVM server (), managed with Portainer for container orchestration and Traefik for routing.
 
 **User's preferred language**: The user communicates in **Turkish**. All responses MUST be in Turkish.
 
 **what currently exists?**
-A full-stack application (FastAPI, React, MongoDB) that has been significantly modified to act as a SuperAdmin control plane. This application can:
-1.  Connect to an external Portainer instance on the user's KVM server.
-2.  Programmatically deploy and manage Docker stacks via the Portainer API.
-3.  A SuperAdmin Stack (Frontend, Backend, DB) has been successfully deployed and is running on the KVM server, accessible via IP and port ().
-4.  A Company Stack deployment mechanism is in place, designed to work with Traefik for domain-based routing.
-5.  Traefik has been deployed to the KVM server via the SuperAdmin panel and is running.
-6.  The UI for the SuperAdmin panel has been built and deployed to its container on the KVM server.
+A full-stack SuperAdmin application (FastAPI, React) that functions as a control plane for the user's KVM server. It is deployed and running on the KVM server.
+- It can connect to the external Portainer instance and programmatically deploy/manage Docker stacks (tenants).
+- The tenant stack deployment includes a React frontend (served by Nginx), a FastAPI backend, and a MongoDB database.
+- Traefik is deployed and configured to handle routing for tenant domains, including subdomains for the panel () and API ().
+- The SuperAdmin panel UI includes a dashboard with live statistics, a company management page with create/delete functionality, and deployment settings.
+- The company deletion process is hard delete, meaning it removes the Portainer stack and associated database records.
+- The tenant provisioning process attempts to automate frontend/backend code deployment and Nginx configuration.
 
 **Last working item**:
-- **Last item agent was working:** The user reported that the New Company form in the SuperAdmin panel incorrectly made the Subdomain field mandatory, preventing the use of custom domains. The agent was in the process of fixing this logic in the frontend code.
+- **Last item agent was working:** The user reported that after successfully provisioning a new company stack, they are unable to log into the tenant's admin panel (e.g., ) and receive an Invalid credentials error. The agent was simultaneously working on making the entire provisioning process (stack deployment, code deployment, user creation, etc.) fully automatic, as the user was also reporting that the frontend landing page was not being deployed correctly after creating a new company.
 - **Status**: IN PROGRESS
-- **Agent Testing Done**: N
-- **Which testing method agent to use?**: screenshot tool. The agent needs to take a screenshot of the updated form and then verify the full company creation flow.
-- **User Testing Done**: N
+- **Agent Testing Done**: Y (Partial)
+- **Which testing method agent to use?**: backend testing agent. The agent has verified via  that the backend API on the KVM server is working correctly and login is successful. However, the user is still facing issues from the browser. The next step is to use the  on the live tenant URL () to check for browser console errors (like CORS, Mixed Content) and verify the page loads correctly.
+- **User Testing Done**: N (User is actively testing and reporting the failure).
 
 **All Pending/In progress Issue list**:
--   **Issue 1**: Fix New Company Form (Priority: P0)
--   **Issue 2**: Deployed SuperAdmin Panel Points to Wrong Backend (Priority: P0)
+-   **Issue 1**: Invalid credentials error on newly provisioned tenant admin panel (Priority: P0)
+-   **Issue 2**: Tenant provisioning is not fully automatic (Priority: P0)
 -   **Issue 3**: Frontend Test Suite Failures (Priority: P1)
 
 **Issues Detail**:
 -   **Issue 1**:
-    -   **Description**: The Yeni Firma Ekle form in the SuperAdmin panel requires the Subdomain field, which is incorrect when a user wants to provide a custom domain like .
-    -   **Attempted fixes**: The agent started editing  to change the form's behavior and state management but did not complete the fix or test it.
+    -   **Description**: Despite the agent verifying that the credentials are correct and the backend login API works via , the user consistently gets an Invalid credentials error when trying to log in through the browser on the newly created tenant's admin panel ().
+    -   **Attempted fixes**:
+        -   Fixed  version incompatibilities in tenant backend containers.
+        -   Corrected Docker container entrypoints to run the correct application code ().
+        -   Resolved Docker inter-container networking issues between the SuperAdmin backend and Portainer.
+        -   Set the  in the frontend build to the correct HTTPS API subdomain ().
+        -   Ensured the admin user is created in the correct tenant-specific MongoDB database.
+        -   Verified backend API functionality directly with .
     -   **Next debug checklist**:
-        1.  Review and complete the changes in  to make the subdomain input optional.
-        2.  Ensure the form's state correctly captures either the subdomain or the custom domain.
-        3.  Re-build and re-deploy the SuperAdmin frontend to the KVM server.
-        4.  Test the form visually and by attempting to create a company with a custom domain.
-    -   **Why fix this issue and what will be achieved with the fix?**: This is blocking the user from provisioning new tenants with custom domains, which is a core requirement of the new architecture.
+        1.  Re-deploy the tenant frontend with the very latest build to rule out any browser caching or stale build issues.
+        2.  Instruct the user on how to open the browser's developer console to check for JavaScript errors, especially CORS or Mixed Content errors, when they attempt to log in.
+        3.  Inspect the live tenant backend container logs () *at the exact moment* the user attempts a failed login to see what the backend receives.
+        4.  Verify that the  function in  is correctly adding all necessary user data (including ) to the JWT payload.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is the final and most critical blocker preventing the user from using the core functionality of the platform.
     -   **Status**: IN PROGRESS
-    -   **Is recurring issue?**: N
-    -   **Should Test frontend/backend/both after fix?**: Frontend
-    -   **Blocked on other issue**: None
-
--   **Issue 2**:
-    -   **Description**: The SuperAdmin React application, which was built and deployed to the KVM server at , is configured to make API calls to the Emergent preview environment, **not** the SuperAdmin backend running on the same KVM server at . This makes the deployed panel non-functional (e.g., login will fail).
-    -   **Attempted fixes**: None. The agent successfully deployed the frontend but overlooked configuring its backend URL for the production environment.
-    -   **Next debug checklist**:
-        1.  Modify the build process or Docker Compose file () for the  to set the  environment variable to .
-        2.  Re-build the React application with the correct environment variable.
-        3.  Re-deploy the updated build files to the  container on the KVM server.
-        4.  Test login and data fetching on .
-    -   **Why fix this issue and what will be achieved with the fix?**: The deployed SuperAdmin panel cannot function without connecting to its own backend. This fix is critical for user acceptance.
-    -   **Status**: NOT STARTED
-    -   **Is recurring issue?**: N
+    -   **Is recurring issue?**: Y
     -   **Should Test frontend/backend/both after fix?**: Both
     -   **Blocked on other issue**: None
 
+-   **Issue 2**:
+    -   **Description**: The user has to manually trigger deployment steps after a new company is created. The process should be fully automated: creating the stack, deploying the frontend code, deploying the backend code, configuring Nginx, and creating the admin user should all happen in a single Add Company action.
+    -   **Attempted fixes**: The agent started adding the necessary functions to  and  to handle backend/frontend deployment and user creation within the  endpoint.
+    -   **Next debug checklist**:
+        1.  Consolidate all deployment logic into the  endpoint.
+        2.  Ensure the sequence is correct: create stack -> deploy backend code -> restart backend -> deploy frontend code -> configure Nginx -> create admin user.
+        3.  Add robust error handling for each step.
+    -   **Why fix this issue and what will be achieved with the fix?**: Fulfills a key user requirement for a seamless, one-click tenant setup experience.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Both
+    -   **Blocked on other issue**: Issue 1. The automation is pointless if it deploys a non-functional tenant.
+
 -   **Issue 3**:
-    -   **Description**: The initial handoff summary noted that the frontend test suite had an 85% success rate. This was never investigated or fixed.
+    -   **Description**: The frontend test suite has a ~90% success rate, which was noted in a previous handoff but never addressed.
     -   **Attempted fixes**: None.
     -   **Next debug checklist**:
-        1.  Examine the test report at  to find the failing tests.
-        2.  Analyze and fix the related React components.
-        3.  Run the frontend testing agent to confirm a 100% success rate.
-    -   **Why fix this issue and what will be achieved with the fix?**: Ensures the stability and correctness of the frontend code before adding more features.
+        1.  Analyze  to identify the failing tests.
+        2.  Fix the corresponding React components or tests.
+        3.  Re-run the frontend testing agent to verify 100% success.
+    -   **Why fix this issue and what will be achieved with the fix?**: Improves code quality and ensures the stability of the frontend application.
     -   **Status**: NOT STARTED
-    -   **Is recurring issue?**: Y (Carried over from a previous fork)
+    -   **Is recurring issue?**: Y
     -   **Should Test frontend/backend/both after fix?**: Frontend
     -   **Blocked on other issue**: None
 
 **In progress Task List**:
--   **Task 1**: Complete the New Company form fix (Priority: P0)
-    -   **Where to resume**: . The agent has already applied two  edits. These need to be verified and potentially completed.
-    -   **What will be achieved with this?**: A functional form that allows SuperAdmins to create tenants with either a subdomain or a custom domain.
+-   **Task 1**: Complete the implementation of the fully automatic tenant provisioning system (Priority: P0)
+    -   **Where to resume**: Refactoring the  endpoint in  to orchestrate all the necessary deployment steps (stack creation, code deployment, user seeding) in a single, atomic operation.
+    -   **What will be achieved with this?**: A one-click system to deploy a new, fully functional tenant.
     -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: Frontend
-    -   **Blocked on something**: None
+    -   **Should Test frontend/backend/both after fix?**: Both
+    -   **Blocked on something**: Issue 1 (Invalid credentials error).
 
 **Upcoming and Future Tasks**
 **Upcoming Tasks:**
--   **P0: Test End-to-End Tenant Provisioning:** Once the New Company form is fixed and the user confirms DNS settings for , the full tenant deployment flow must be tested.
--   **P1: Implement Landing Page Content Management:** (From original handoff) Implement the İçerik (Content) and Ayarlar (Settings) tabs in .
+-   **P1: Implement Landing Page Content Management:** Implement the İçerik (Content) and Ayarlar (Settings) tabs in  for tenant landing pages.
 
 **Future Tasks:**
 -   **P1: Live Payment Integration (iyzico).**
 -   **P1: Notification Services (SMS, Email).**
 -   **P2: E-Invoice Integration (EDM).**
 -   **P2: Advanced Workflows (HGS/OGS checks, etc.).**
--   **P3: Develop Customer Mobile App** (Brief created: ).
+-   **P3: Develop Customer Mobile App.**
 
 **Completed work in this session**
--   Architectural shift from a simple web app to a multi-tenant Portainer/Traefik management platform.
--   Separated SuperAdmin and Company Admin roles/UIs.
--   Created and deployed a fully containerized SuperAdmin stack (FE/BE/DB) to the user's KVM server.
--   Created a service () to programmatically manage Docker stacks via the Portainer API.
--   Integrated Traefik as a reverse proxy, deployable from the SuperAdmin panel.
--   Updated company creation logic to support full-stack deployment with Traefik labels for custom domains.
--   Successfully built and deployed the SuperAdmin React app to its Nginx container on the KVM server.
--   Provided the user with necessary firewall () commands for the KVM server.
+-   Resolved the SuperAdmin New Company form bug, making the subdomain field optional.
+-   Fixed the deployed SuperAdmin panel on the KVM server by configuring it to point to the correct backend URL ().
+-   Implemented a hard delete feature for companies in the SuperAdmin panel, which removes the Portainer stack and all associated data.
+-   Refactored the tenant URL structure to use three subdomains:  for the landing page,  for the admin panel, and  for the backend.
+-   Configured Traefik and tenant Nginx services to support the new subdomain structure and SPA routing.
+-   Successfully implemented and tested all core CRUD APIs (vehicles, customers, reservations) for tenant panels.
+-   Resolved a critical  error by correctly associating  users with their respective company IDs in the database.
+-   Debugged and resolved numerous complex KVM server deployment issues, including Docker networking, container entrypoints, environment variable propagation, and Python dependency conflicts ().
+-   Implemented a live statistics dashboard for the SuperAdmin panel.
+-   Cleaned up all test stacks and data from the user's Portainer instance and database.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1: Deployed SuperAdmin Panel Points to Wrong Backend:** The frontend at  is not configured to communicate with the backend at .
--   **Issue 2: Frontend Test Failures:** An 85% success rate was reported in a previous test run and has not been addressed.
+-   **Issue 1: Frontend Test Failures:** An 85-90% success rate was reported in test runs and has not been addressed.
 
 **Known issue recurrence from previous fork**
 -   **Issue recurrence in previous fork**: Frontend test suite failures.
--   **Recurrence count**: 1
+-   **Recurrence count**: 2
 -   **Status**: NOT STARTED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Multi-tenancy via Containerization:** Using Portainer to dynamically provision separate, isolated full-stack applications (Docker containers) for each tenant.
--   **Infrastructure as Code (IaC):** Using a Python service () to define and deploy Docker Compose stacks to Portainer.
--   **Reverse Proxy & SSL Automation:** Using Traefik to automatically route traffic based on hostnames and manage Let's Encrypt SSL certificates.
--   **Portainer API:** Programmatic interaction with Portainer for managing the infrastructure.
--   **React SPA Deployment:** Building a React app and serving it with Nginx, including the necessary  configuration for routing.
+-   **Multi-tenancy via Containerization:** Using Portainer to dynamically provision separate, isolated full-stack applications for each tenant.
+-   **Infrastructure as Code (IaC):** A Python service () defines and deploys Docker Compose stacks to Portainer.
+-   **Reverse Proxy & SSL Automation:** Traefik manages routing for multiple custom domains and subdomains, with automated SSL.
+-   **Portainer API:** The backend uses  to programmatically interact with the Portainer API for all infrastructure management.
+-   **Docker Inter-Container Networking:** Resolved issues by connecting containers to a shared Docker network and using internal container hostnames/IPs for communication (e.g., backend connecting to Portainer).
+-   **SPA Deployment & Routing:** React app is built and served by an Nginx container, which is configured with  to support client-side routing.
 
 **key DB schema**
--   ** collection**: Extended with , , ,  (JSON string), and  (JSON string) to track deployed tenant infrastructure.
+-   ** collection**: Now contains a  field to link  users to their specific company, which is crucial for authorization.
+-   ** collection**: Heavily used to track tenant status, domains, and Portainer stack details.
 
 **changes in tech stack**
--   **Backend**:  library added for making synchronous/asynchronous HTTP requests to the Portainer API.
--   **Infrastructure**: The architecture now relies heavily on **Portainer** (for container orchestration) and **Traefik** (for reverse proxying and SSL).
+-    and  versions were pinned to resolve hashing inconsistencies between the local environment and the deployment container.
 
 **All files of reference**
--   : The core logic for infrastructure automation. Contains Docker Compose templates.
--   : The main API file, extended with numerous endpoints for SuperAdmin and Portainer management.
--   : The file currently being edited to fix a user-reported bug.
--   : Displays the list of tenants and their deployment status.
--   : Shows platform-wide statistics.
--   : A new requirements document created for a future mobile app.
+-   : **Critical file.** Contains all logic for creating, deploying, and deleting tenant infrastructure.
+-   : **Critical file.** The main API monolith. Contains the  endpoint and all SuperAdmin/tenant logic.
+-   : Contains the core routing logic, modified to differentiate between the landing page and the admin panel based on the .
+-   : UI for listing and deleting companies.
+-   : The form for creating new tenants.
 
 **Areas that need refactoring**:
--   The  file has grown significantly and now manages application logic, SuperAdmin logic, and infrastructure deployment logic. It should be broken down into modules (e.g., , ).
--   The Docker Compose templates inside  are constructed using large Python f-strings, which are hard to read and maintain. They should be moved to separate  template files.
+-   ** is a large monolith.** It urgently needs to be broken down into separate modules/routers (e.g., , , ) to improve maintainability.
+-   The Docker Compose templates within  are large f-strings and should be extracted into separate  template files.
 
 **key api endpoints**
--   : Deploys/updates a tenant stack in Portainer.
--   : Deploys the main SuperAdmin stack.
--   : Deploys the Traefik reverse proxy.
--   : Checks the connection to Portainer.
--   : Checks if Traefik is installed.
+-   : The main endpoint for deploying/updating a tenant stack. (Currently being refactored for full automation).
+-   : Deletes a company and its entire Portainer stack.
+-   : Deploys the SuperAdmin's own frontend.
+-   : Deploys the SuperAdmin's own backend.
+-   : Provides live data for the SuperAdmin dashboard.
+-   : The login endpoint for all users (both SuperAdmin and tenant admins).
 
 **Critical Info for New Agent**
--   The primary focus has shifted from developing a single application to building a platform that automates the deployment of multiple application instances on the user's external KVM server ().
--   **CRITICAL DEPLOYMENT BUG**: The deployed SuperAdmin frontend at  is non-functional because it's configured to use the wrong backend URL. This MUST be fixed by setting the  environment variable during the build/deployment process to point to .
--   All domain-based deployments depend on the user correctly setting their DNS records to point to the KVM server's IP.
--   Firewall management on the KVM server is the user's responsibility, but the agent must provide the correct  or  commands.
+-   **Login Bug is Top Priority:** The Invalid Credentials error is the main blocker. The agent's  tests confirm the backend API is working. The issue is almost certainly a browser-side problem (caching, CORS, mixed content) or a subtle misconfiguration in the final deployed frontend build. Do not assume the backend is the problem; investigate the full path from the browser to the API.
+-   **Automation is the Goal:** The user wants a one-click provisioning system. This task is intertwined with fixing the login bug, as the automated process must result in a working tenant.
+-   **KVM Environment is Truth:** All work must be validated against the user's live KVM server (). Local testing is insufficient.
+-   **Docker Networking:** The key to making the SuperAdmin backend communicate with Portainer was to connect the Portainer container to the  and use the internal Docker IP ( or similar, without SSL) for the . Public IPs with SSL from within Docker containers are unreliable due to certificate verification and firewall issues.
 
 **documents and test_reports created in this job**
 -   
--   
--   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  
-2.  
-3.  
-4.  
-5.  
-6.  
-7.  
-8.  
-9.  
-10. 
+1.  Bunu artık otomatik yapabilir misin ? Otomatik db ve diğer ayarlar ve Nginix işlemleri.
+2.  Ve hala panele giriş yaparken Invalid credentials hatası var giriş yapılmıyor.
+3.  Şimdi yeni firma ekledim. Ekledikten sonra https://bitlisrentacar.com landing page yine Welcome to nginx! sayfasını açıyor. Konfigrasyonu tekrar gözden geçirir misin ?
+4.  pORTAİNER TEST STACK VE CONTAİNER LARI TEMİZLE.
+5.  Süperadmin Tarafında Eksiklik Varsa tamamla. Süperadmin tarafında Firma Silinirse Portainer ve Diğer tüm kayıtlı yerden silinsin. Firma Silindiği zaman Firma Listesinden de Silinsin. İstatistik ve diğer bilgiler Test verisinden çıkarılsın canlı veriler gelsin. SÜPERADMİN PANELİNİ TAMAMEN FİNAL AŞAMASINA GETİR.
+6.  Araç eklerken Company ID required for Firma Admin hatası veriyor. Araçlar ve Diğer DB bağlantılarını tamamen yap
+7.  https://panel.bitlisrentacar.com/ sayfası yeterli login yazmasına gerek yok. https://panel.bitlisrentacar.com adresi güncel Rent a CarYönetim Paneli Girişi olmalı
+8.  nerede hata yapıyorum (user provided screenshot of login failure)
+9.  bitlis rent a car firması için kullanıcı adı ve şifreye bakar mısın database den . Çünkü hatalı diyor
+10. Şimdi sen konuyu çok yanlış anladın. Tekrar hatırlatmak istiyorum. -Süperadmin Firma Ekleyecekti. - Süperadmin firma (domain) ekledikten sonra Deploy işlemi otomatik olacaktı ve - Landing Page (Önceden yapmıştın) -Rent a car Yönetim Paneli... Şimdi deploy ettiğin içerik hatalı. ... Admin paneli için de alanadi.com/admin olacak şekilde ayarla.
 
 **Project Health Check:**
 -   **Broken**:
-    -   The live SuperAdmin panel on the KVM server is non-functional as it points to the wrong backend API.
-    -   The New Company creation form has a logic bug preventing the use of custom domains.
+    -   The login functionality for newly provisioned tenants is non-functional from the user's browser, despite backend APIs working correctly via direct calls. This is the highest priority blocker.
 -   **Mocked**: GPS tracking, Payment processing (iyzico), e-Fatura integration.
 
 **3rd Party Integrations**
--   **Portainer**: Used for container orchestration on the user's KVM server. Requires URL and API Key.
--   **Traefik**: Used for reverse proxy and automated SSL on the KVM server.
--   **iyzipay**: Library installed, but full implementation is a future task. Requires a user-provided API key.
+-   **Portainer**: Core of the architecture. Used for container orchestration on the user's KVM server. Requires URL and API Key.
+-   **Traefik**: Used for reverse proxying and automated SSL on the KVM server.
+-   **iyzipay**: Library installed, but implementation is a future task. Requires a user-provided API key.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES (for local changes before deployment)
+-   **Testing agent used after significant changes**: YES (Achieved 90-95% success rates locally).
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: Yes, the testing agent created new test files during its runs.
+-   **Test files created**: Yes, by the testing agent.
 -   **Known regressions**:
-    -   Original frontend test failure (85% success) remains unresolved.
-    -   The deployed SuperAdmin panel is broken due to a configuration error (wrong backend URL).
+    -   The login flow for new tenants is broken from the user's perspective.
+    -   The frontend test suite failure (~90% success) remains unresolved.
 
 **Credentials to test flow:**
--   **SuperAdmin Panel**:  / 
--   **Firma Admin Panel (Local)**:  / 
--   **Portainer Instance**: URL , API Key 
+-   **SuperAdmin Panel (KVM & Local)**:  / 
+-   **Tenant Admin Panel (e.g., Bitlis)**:  / 
+-   **Portainer Instance**: URL  (publicly) or  (internally), API Key 
 
 **What agent forgot to execute**
--   The agent did not complete the fix for the New Company form bug reported by the user.
--   The agent failed to configure the correct backend URL for the SuperAdmin panel deployed to the user's KVM server, leaving it in a broken state.
--   The agent never addressed the pre-existing frontend test failures mentioned in the initial handoff summary.</analysis>
+-   The agent has consistently postponed addressing the frontend test suite failures (stuck at ~90% success) across multiple sessions, prioritizing new features and user-reported bugs.</analysis>

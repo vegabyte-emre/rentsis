@@ -22,17 +22,17 @@
 
 **Production API URL:**  
 ```
-https://car-host.preview.emergentagent.com/api
+https://rentacar-control.preview.emergentagent.com/api
 ```
 
 **API Dokümantasyonu (Swagger):**  
 ```
-https://car-host.preview.emergentagent.com/docs
+https://rentacar-control.preview.emergentagent.com/docs
 ```
 
 **Mevcut Web Sitesi:**  
 ```
-https://car-host.preview.emergentagent.com/
+https://rentacar-control.preview.emergentagent.com/
 ```
 
 ---
@@ -887,8 +887,8 @@ GET /api/public/locations/nearest
 ## 📞 İLETİŞİM & DESTEK
 
 **Backend API:** Aktif ve çalışıyor  
-**API Docs:** https://car-host.preview.emergentagent.com/docs  
-**Web App:** https://car-host.preview.emergentagent.com/
+**API Docs:** https://rentacar-control.preview.emergentagent.com/docs  
+**Web App:** https://rentacar-control.preview.emergentagent.com/
 
 ---
 
