@@ -111,6 +111,36 @@ export function SuperAdminCompanies() {
     }
   };
 
+  const handleProvision = async (companyId, companyName) => {
+    if (!window.confirm(`"${companyName}" firmasını Portainer'a deploy etmek istediğinize emin misiniz?`)) return;
+    try {
+      toast.loading("Firma deploy ediliyor...", { id: "provision" });
+      const response = await axios.post(`${API_URL}/api/superadmin/companies/${companyId}/provision`);
+      toast.success(
+        <div>
+          <p className="font-medium">Firma başarıyla deploy edildi!</p>
+          <p className="text-xs mt-1">MongoDB Port: {response.data.ports?.mongodb}</p>
+        </div>,
+        { id: "provision", duration: 5000 }
+      );
+      fetchCompanies();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Deploy işlemi başarısız", { id: "provision" });
+    }
+  };
+
+  const handleDeprovision = async (companyId, companyName) => {
+    if (!window.confirm(`"${companyName}" firmasının Portainer stack'ini silmek istediğinize emin misiniz? Bu işlem geri alınamaz!`)) return;
+    try {
+      toast.loading("Stack kaldırılıyor...", { id: "deprovision" });
+      await axios.delete(`${API_URL}/api/superadmin/companies/${companyId}/provision`);
+      toast.success("Stack başarıyla kaldırıldı", { id: "deprovision" });
+      fetchCompanies();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Stack kaldırma işlemi başarısız", { id: "deprovision" });
+    }
+  };
+
   const filteredCompanies = companies.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
