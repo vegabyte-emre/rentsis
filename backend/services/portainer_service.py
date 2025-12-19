@@ -777,6 +777,43 @@ class PortainerService:
         
         return {'success': True, 'message': 'Nginx configured for SPA routing'}
 
+    async def restart_container(self, container_name: str) -> Dict[str, Any]:
+        """
+        Restart a container by name
+        """
+        # First, get container ID
+        containers_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/json"
+        containers = await self._request('GET', containers_endpoint)
+        
+        container_id = None
+        if isinstance(containers, list):
+            for c in containers:
+                names = c.get('Names', [])
+                for name in names:
+                    if container_name in name:
+                        container_id = c.get('Id')
+                        break
+                if container_id:
+                    break
+        
+        if not container_id:
+            return {'error': f'Container {container_name} not found'}
+        
+        # Restart container
+        restart_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/{container_id}/restart"
+        
+        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+            try:
+                url = f"{self.base_url}/api/{restart_endpoint}"
+                response = await client.post(url, headers=self.headers)
+                
+                if response.status_code < 400:
+                    return {'success': True}
+                else:
+                    return {'error': response.text, 'status_code': response.status_code}
+            except Exception as e:
+                return {'error': str(e)}
+
 
 # Singleton instance
 portainer_service = PortainerService()
