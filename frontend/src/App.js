@@ -53,11 +53,11 @@ function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={isAdminPanel ? "/login" : "/admin/login"} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user?.role)) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to={isAdminPanel ? "/dashboard" : "/admin/dashboard"} replace />;
   }
 
   return children;
@@ -76,7 +76,7 @@ function PublicRoute({ children }) {
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to={isAdminPanel ? "/dashboard" : "/admin/dashboard"} replace />;
   }
 
   return children;
