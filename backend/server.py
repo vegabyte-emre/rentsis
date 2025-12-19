@@ -887,6 +887,7 @@ async def full_auto_provision(company: dict, result: dict, port_offset: int):
     domain = company.get("domain")
     
     logger.info(f"[AUTO-PROVISION] Starting full auto provision for {company['name']}")
+    logger.info(f"[AUTO-PROVISION] Company code: {company_code}, Safe code: {safe_code}")
     
     try:
         # Wait for containers to start
@@ -894,10 +895,15 @@ async def full_auto_provision(company: dict, result: dict, port_offset: int):
         await asyncio.sleep(45)
         
         # Step 1: Deploy backend code
+        # Container names use safe_code (no dashes/underscores)
         logger.info(f"[AUTO-PROVISION] Step 1: Deploying backend code...")
-        backend_container = f"{company_code}_backend"
+        backend_container = f"{safe_code}_backend"
         mongo_service_name = f"{safe_code}_mongodb"
-        db_name = f"{company_code}_db"
+        db_name = f"{safe_code}_db"
+        
+        logger.info(f"[AUTO-PROVISION] Backend container: {backend_container}")
+        logger.info(f"[AUTO-PROVISION] MongoDB service: {mongo_service_name}")
+        logger.info(f"[AUTO-PROVISION] Database: {db_name}")
         
         await deploy_company_backend(
             company_code=company_code,
@@ -911,7 +917,9 @@ async def full_auto_provision(company: dict, result: dict, port_offset: int):
         
         # Step 2: Deploy frontend with HTTPS API URL
         logger.info(f"[AUTO-PROVISION] Step 2: Deploying frontend code...")
-        frontend_container = f"{company_code}_frontend"
+        frontend_container = f"{safe_code}_frontend"
+        
+        logger.info(f"[AUTO-PROVISION] Frontend container: {frontend_container}")
         
         # Use HTTPS API URL for frontend
         if domain:
@@ -928,7 +936,7 @@ async def full_auto_provision(company: dict, result: dict, port_offset: int):
         # Step 3: Setup database with admin user
         logger.info(f"[AUTO-PROVISION] Step 3: Setting up database and admin user...")
         mongo_port = result.get('ports', {}).get('mongodb', 21000 + port_offset)
-        await setup_company_database(company, mongo_port)
+        await setup_company_database(company, mongo_port, db_name)
         
         # Step 4: Restart Traefik to pick up new labels
         logger.info(f"[AUTO-PROVISION] Step 4: Refreshing Traefik routing...")
