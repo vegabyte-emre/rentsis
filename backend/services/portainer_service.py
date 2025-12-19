@@ -195,7 +195,7 @@ services:
     depends_on:
       - {safe_code}_backend
     networks:
-      - {company_code}_network
+      - {safe_code}_network
       - traefik_network
     labels:
       - "traefik.enable=true"
@@ -213,10 +213,10 @@ services:
       - "traefik.http.services.{safe_code}-frontend.loadbalancer.server.port=80"
 
 volumes:
-  {company_code}_mongo_data:
+  {safe_code}_mongo_data:
 
 networks:
-  {company_code}_network:
+  {safe_code}_network:
     driver: bridge
   traefik_network:
     external: true
