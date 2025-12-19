@@ -497,6 +497,78 @@ class PortainerService:
         return await self._request('POST', endpoint)
 
 
+    async def deploy_traefik(self, admin_email: str = "admin@rentafleet.com") -> Dict[str, Any]:
+        """
+        Deploy Traefik reverse proxy stack
+        """
+        stack_name = "traefik"
+        compose_content = get_traefik_compose_template(admin_email)
+        
+        # Check if already exists
+        existing_stacks = await self.get_stacks()
+        for stack in existing_stacks:
+            if isinstance(stack, dict) and stack.get("Name") == stack_name:
+                return {
+                    'success': True,
+                    'message': 'Traefik already deployed',
+                    'stack_id': stack.get('Id'),
+                    'already_exists': True
+                }
+        
+        endpoint = f"stacks/create/standalone/string?endpointId={self.endpoint_id}"
+        
+        payload = {
+            'name': stack_name,
+            'stackFileContent': compose_content,
+            'env': []
+        }
+        
+        result = await self._request('POST', endpoint, data=payload)
+        
+        if 'error' not in result:
+            logger.info("Traefik stack deployed successfully")
+            return {
+                'success': True,
+                'stack_id': result.get('Id'),
+                'stack_name': stack_name,
+                'dashboard_url': f"http://{SERVER_IP}:8080",
+                'message': 'Traefik deployed successfully'
+            }
+        else:
+            logger.error(f"Traefik deployment failed: {result}")
+            return {'success': False, 'error': result.get('error', 'Unknown error')}
+
+    async def check_traefik_status(self) -> Dict[str, Any]:
+        """
+        Check if Traefik is deployed and running
+        """
+        try:
+            stacks = await self.get_stacks()
+            traefik_stack = None
+            for stack in stacks:
+                if isinstance(stack, dict) and stack.get("Name") == "traefik":
+                    traefik_stack = stack
+                    break
+            
+            if traefik_stack:
+                return {
+                    'installed': True,
+                    'stack_id': traefik_stack.get('Id'),
+                    'status': 'active',
+                    'dashboard_url': f"http://{SERVER_IP}:8080"
+                }
+            else:
+                return {
+                    'installed': False,
+                    'status': 'not_installed'
+                }
+        except Exception as e:
+            return {
+                'installed': False,
+                'status': 'error',
+                'error': str(e)
+            }
+
     async def create_superadmin_stack(self) -> Dict[str, Any]:
         """
         Create SuperAdmin stack in Portainer
