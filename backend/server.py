@@ -739,6 +739,32 @@ async def deploy_superadmin_stack(user: dict = Depends(get_current_user)):
     else:
         raise HTTPException(status_code=500, detail=f"Deployment failed: {result.get('error')}")
 
+@api_router.get("/superadmin/traefik/status")
+async def get_traefik_status(user: dict = Depends(get_current_user)):
+    """SuperAdmin: Check Traefik installation status"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can check Traefik status")
+    
+    return await portainer_service.check_traefik_status()
+
+@api_router.post("/superadmin/traefik/deploy")
+async def deploy_traefik(user: dict = Depends(get_current_user), admin_email: str = "admin@rentafleet.com"):
+    """SuperAdmin: Deploy Traefik reverse proxy to Portainer"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can deploy Traefik")
+    
+    result = await portainer_service.deploy_traefik(admin_email)
+    
+    if result.get("success"):
+        return {
+            "message": result.get("message", "Traefik deployed successfully"),
+            "stack_id": result.get("stack_id"),
+            "dashboard_url": result.get("dashboard_url"),
+            "already_exists": result.get("already_exists", False)
+        }
+    else:
+        raise HTTPException(status_code=500, detail=f"Traefik deployment failed: {result.get('error')}")
+
 # ============== LEGACY COMPANY ROUTES (for backward compatibility) ==============
 @api_router.post("/companies", response_model=CompanyResponse)
 async def create_company(company: CompanyCreate, user: dict = Depends(get_current_user)):
