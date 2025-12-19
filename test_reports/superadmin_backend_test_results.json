@@ -1,0 +1,144 @@
+{
+  "summary": {
+    "total_tests": 22,
+    "passed_tests": 21,
+    "failed_tests": 1,
+    "success_rate": 95.45454545454545,
+    "test_timestamp": "2025-12-19T13:26:37.017181",
+    "test_type": "SuperAdmin Backend API"
+  },
+  "test_results": [
+    {
+      "test": "SuperAdmin login",
+      "success": true,
+      "details": "Role: superadmin",
+      "timestamp": "2025-12-19T13:26:35.549908"
+    },
+    {
+      "test": "Get current SuperAdmin user",
+      "success": true,
+      "details": "Role: superadmin",
+      "timestamp": "2025-12-19T13:26:35.590594"
+    },
+    {
+      "test": "SuperAdmin stats API",
+      "success": true,
+      "details": "Companies: 6, Active: 0, Users: 6",
+      "timestamp": "2025-12-19T13:26:35.634667"
+    },
+    {
+      "test": "Create company",
+      "success": true,
+      "details": "Company ID: 74f115be-5e6a-4fbd-94e8-1bc7265f45a0",
+      "timestamp": "2025-12-19T13:26:35.898278"
+    },
+    {
+      "test": "Company data structure",
+      "success": true,
+      "details": "Status: pending",
+      "timestamp": "2025-12-19T13:26:35.898293"
+    },
+    {
+      "test": "List companies",
+      "success": true,
+      "details": "Found 7 companies",
+      "timestamp": "2025-12-19T13:26:35.945816"
+    },
+    {
+      "test": "Created company in list",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-19T13:26:35.945834"
+    },
+    {
+      "test": "Company list data structure",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-19T13:26:35.945842"
+    },
+    {
+      "test": "Get company details",
+      "success": true,
+      "details": "Name: Test Company 20251219132635",
+      "timestamp": "2025-12-19T13:26:35.983737"
+    },
+    {
+      "test": "Company details data structure",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-19T13:26:35.983752"
+    },
+    {
+      "test": "Activate company",
+      "success": true,
+      "details": "Response: {'message': 'Company status updated', 'status': 'active'}",
+      "timestamp": "2025-12-19T13:26:36.027588"
+    },
+    {
+      "test": "Suspend company",
+      "success": true,
+      "details": "Response: {'message': 'Company status updated', 'status': 'suspended'}",
+      "timestamp": "2025-12-19T13:26:36.064872"
+    },
+    {
+      "test": "Reactivate company",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-19T13:26:36.140783"
+    },
+    {
+      "test": "Firma Admin login",
+      "success": true,
+      "details": "Role: firma_admin, Company: 74f115be-5e6a-4fbd-94e8-1bc7265f45a0",
+      "timestamp": "2025-12-19T13:26:36.407778"
+    },
+    {
+      "test": "Get current Firma Admin user",
+      "success": true,
+      "details": "Company ID: 74f115be-5e6a-4fbd-94e8-1bc7265f45a0",
+      "timestamp": "2025-12-19T13:26:36.447284"
+    },
+    {
+      "test": "Firma Admin blocked from SuperAdmin stats",
+      "success": true,
+      "details": "Status: 403",
+      "timestamp": "2025-12-19T13:26:36.486277"
+    },
+    {
+      "test": "Firma Admin blocked from SuperAdmin companies",
+      "success": true,
+      "details": "Status: 403",
+      "timestamp": "2025-12-19T13:26:36.522937"
+    },
+    {
+      "test": "Unauthenticated access blocked from SuperAdmin stats",
+      "success": false,
+      "details": "Status: 403",
+      "timestamp": "2025-12-19T13:26:36.563826"
+    },
+    {
+      "test": "Delete company",
+      "success": true,
+      "details": "Response: {'message': 'Company deleted successfully'}",
+      "timestamp": "2025-12-19T13:26:36.603263"
+    },
+    {
+      "test": "Company marked as deleted",
+      "success": true,
+      "details": "Status: deleted, Active: False",
+      "timestamp": "2025-12-19T13:26:36.638444"
+    },
+    {
+      "test": "Invalid company ID returns 404",
+      "success": true,
+      "details": "Status: 404",
+      "timestamp": "2025-12-19T13:26:36.678030"
+    },
+    {
+      "test": "Duplicate company code blocked",
+      "success": true,
+      "details": "Status: 400",
+      "timestamp": "2025-12-19T13:26:37.017144"
+    }
+  ]
+}
