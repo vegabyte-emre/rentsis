@@ -235,16 +235,28 @@ export function SuperAdminCompanies() {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
-                          {company.subdomain && (
-                            <div className="flex items-center gap-1 text-sm text-slate-300">
-                              <Globe className="h-3 w-3" />
-                              {company.subdomain}.rentafleet.com
+                          {company.portainer_stack_id ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1 text-sm text-green-400">
+                                <Server className="h-3 w-3" />
+                                Stack #{company.portainer_stack_id}
+                              </div>
+                              {company.ports && (
+                                <div className="text-xs text-slate-400">
+                                  MongoDB: {company.ports.mongodb}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-sm text-yellow-400">
+                              <XCircle className="h-3 w-3" />
+                              Deploy edilmedi
                             </div>
                           )}
-                          {company.domain && (
+                          {company.subdomain && (
                             <div className="flex items-center gap-1 text-xs text-slate-500">
-                              <ExternalLink className="h-3 w-3" />
-                              {company.domain}
+                              <Globe className="h-3 w-3" />
+                              {company.subdomain}.rentafleet.com
                             </div>
                           )}
                         </div>
