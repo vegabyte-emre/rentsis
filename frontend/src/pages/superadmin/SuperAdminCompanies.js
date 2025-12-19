@@ -364,10 +364,10 @@ export function SuperAdminCompanies() {
                             <DropdownMenuSeparator className="bg-slate-700" />
                             <DropdownMenuItem
                               className="text-red-400 hover:bg-slate-700 cursor-pointer"
-                              onClick={() => handleDelete(company.id)}
+                              onClick={() => handleDelete(company.id, company.name)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              Sil
+                              Tamamen Sil
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
