@@ -173,15 +173,30 @@ services:
     working_dir: /app
     command: >
       bash -c "
-        apt-get update && apt-get install -y git curl &&
-        pip install fastapi uvicorn motor pydantic python-jose passlib python-dotenv bcrypt httpx email-validator &&
-        if [ ! -f /app/server.py ]; then
-          echo 'from fastapi import FastAPI' > /app/server.py &&
-          echo 'app = FastAPI()' >> /app/server.py &&
-          echo '@app.get(\"/api/health\")' >> /app/server.py &&
-          echo 'def health(): return {\"status\": \"healthy\", \"service\": \"superadmin\"}' >> /app/server.py
-        fi &&
-        uvicorn server:app --host 0.0.0.0 --port 8001 --reload
+        pip install fastapi uvicorn motor pydantic email-validator httpx &&
+        cat > /app/server.py << 'PYEOF'
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title='SuperAdmin API')
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+
+@app.get('/api/health')
+def health():
+    return {'status': 'healthy', 'service': 'superadmin'}
+
+@app.get('/api/info')
+def info():
+    return {'name': 'SuperAdmin Panel', 'version': '1.0.0'}
+PYEOF
+        uvicorn server:app --host 0.0.0.0 --port 8001
       "
     environment:
       - MONGO_URL=mongodb://superadmin_mongodb:27017
