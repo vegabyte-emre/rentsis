@@ -111,6 +111,38 @@ export function SuperAdminDashboard() {
         <p className="text-slate-400 mt-1">Tüm rent a car firmalarını tek panelden yönetin</p>
       </div>
 
+      {/* Portainer Status */}
+      <Card className={`border ${portainerStatus?.connected ? 'bg-green-900/20 border-green-500/30' : 'bg-red-900/20 border-red-500/30'}`}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${portainerStatus?.connected ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                <Server className={`h-5 w-5 ${portainerStatus?.connected ? 'text-green-400' : 'text-red-400'}`} />
+              </div>
+              <div>
+                <p className="font-medium text-white flex items-center gap-2">
+                  Portainer Durumu
+                  {portainerStatus?.connected ? (
+                    <CheckCircle className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-400" />
+                  )}
+                </p>
+                <p className="text-sm text-slate-400">
+                  {portainerStatus?.connected 
+                    ? `Bağlı - ${portainerStatus.stack_count} aktif stack` 
+                    : portainerStatus?.error || 'Bağlantı yok'}
+                </p>
+              </div>
+            </div>
+            <div className="text-right text-sm">
+              <p className="text-slate-400">URL: <span className="text-slate-300 font-mono">{portainerStatus?.url || '-'}</span></p>
+              <p className="text-slate-400">IP: <span className="text-slate-300 font-mono">72.61.158.147</span></p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => (
