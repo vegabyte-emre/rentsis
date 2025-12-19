@@ -150,26 +150,26 @@ def get_full_company_stack_template(company_code: str, company_name: str, domain
 services:
   {safe_code}_mongodb:
     image: mongo:6.0
-    container_name: {company_code}_mongodb
+    container_name: {safe_code}_mongodb
     restart: unless-stopped
     environment:
-      - MONGO_INITDB_DATABASE={company_code}_db
+      - MONGO_INITDB_DATABASE={safe_code}_db
     volumes:
-      - {company_code}_mongo_data:/data/db
+      - {safe_code}_mongo_data:/data/db
     ports:
       - "{mongo_port}:27017"
     networks:
-      - {company_code}_network
+      - {safe_code}_network
       - traefik_network
 
   {safe_code}_backend:
     image: tiangolo/uvicorn-gunicorn-fastapi:python3.11-slim
-    container_name: {company_code}_backend
+    container_name: {safe_code}_backend
     restart: unless-stopped
     environment:
       - MONGO_URL=mongodb://{safe_code}_mongodb:27017
-      - DB_NAME={company_code}_db
-      - JWT_SECRET={company_code}_jwt_secret_2024
+      - DB_NAME={safe_code}_db
+      - JWT_SECRET={safe_code}_jwt_secret_2024
       - COMPANY_CODE={company_code}
       - COMPANY_NAME={company_name}
     ports:
@@ -177,7 +177,7 @@ services:
     depends_on:
       - {safe_code}_mongodb
     networks:
-      - {company_code}_network
+      - {safe_code}_network
       - traefik_network
     labels:
       - "traefik.enable=true"
@@ -188,7 +188,7 @@ services:
 
   {safe_code}_frontend:
     image: nginx:alpine
-    container_name: {company_code}_frontend
+    container_name: {safe_code}_frontend
     restart: unless-stopped
     ports:
       - "{frontend_port}:80"
