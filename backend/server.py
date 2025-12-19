@@ -20,6 +20,9 @@ load_dotenv(ROOT_DIR / '.env')
 
 # Import Portainer service
 from services.portainer_service import portainer_service
+import subprocess
+import tarfile
+import io
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
