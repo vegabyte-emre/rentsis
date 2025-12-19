@@ -851,6 +851,141 @@ async def deploy_frontend_to_kvm(background_tasks: BackgroundTasks, user: dict =
             "error": str(e)
         }
 
+@api_router.post("/superadmin/deploy-backend-to-kvm")
+async def deploy_backend_to_kvm(user: dict = Depends(get_current_user)):
+    """
+    SuperAdmin: Deploy backend code to KVM server's SuperAdmin container
+    Uploads server.py, requirements.txt and services folder to the backend container
+    """
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can deploy backend")
+    
+    import tarfile
+    import io
+    
+    backend_dir = "/app/backend"
+    
+    try:
+        # Create tar archive of backend files
+        tar_buffer = io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
+            # Add server.py
+            tar.add(f"{backend_dir}/server.py", arcname="server.py")
+            
+            # Add requirements.txt
+            tar.add(f"{backend_dir}/requirements.txt", arcname="requirements.txt")
+            
+            # Add services folder
+            services_dir = f"{backend_dir}/services"
+            if os.path.exists(services_dir):
+                for root, dirs, files in os.walk(services_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, backend_dir)
+                        tar.add(file_path, arcname=arcname)
+            
+            # Add .env file for KVM
+            env_content = """MONGO_URL=mongodb://superadmin_mongodb:27017
+DB_NAME=superadmin_db
+JWT_SECRET=kvm_superadmin_jwt_secret_2024
+"""
+            env_info = tarfile.TarInfo(name=".env")
+            env_bytes = env_content.encode('utf-8')
+            env_info.size = len(env_bytes)
+            tar.addfile(env_info, io.BytesIO(env_bytes))
+        
+        tar_data = tar_buffer.getvalue()
+        
+        # Upload to backend container
+        upload_result = await portainer_service.upload_to_container(
+            container_name="superadmin_backend",
+            tar_data=tar_data,
+            dest_path="/app"
+        )
+        
+        if upload_result.get('error'):
+            return {
+                "success": False,
+                "error": "Upload to container failed",
+                "details": upload_result.get('error')
+            }
+        
+        # Install requirements and restart uvicorn via exec
+        install_cmd = "cd /app && pip install -r requirements.txt --quiet && pkill -f uvicorn; sleep 2"
+        exec_result = await portainer_service.exec_in_container(
+            container_name="superadmin_backend",
+            command=install_cmd
+        )
+        
+        return {
+            "success": True,
+            "message": "Backend deployed successfully to KVM server",
+            "backend_url": "http://72.61.158.147:9001",
+            "note": "Container may take 30-60 seconds to restart with new code"
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+@api_router.post("/superadmin/seed-kvm-database")
+async def seed_kvm_database(user: dict = Depends(get_current_user)):
+    """
+    SuperAdmin: Seed initial admin user to KVM MongoDB
+    Creates admin@fleetease.com user in KVM's MongoDB
+    """
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can seed database")
+    
+    from motor.motor_asyncio import AsyncIOMotorClient
+    
+    try:
+        # Connect to KVM MongoDB
+        kvm_mongo_url = "mongodb://72.61.158.147:27017"
+        kvm_client = AsyncIOMotorClient(kvm_mongo_url, serverSelectionTimeoutMS=5000)
+        kvm_db = kvm_client["superadmin_db"]
+        
+        # Check if admin exists
+        existing = await kvm_db.users.find_one({"email": "admin@fleetease.com"})
+        if existing:
+            return {
+                "success": True,
+                "message": "Admin user already exists",
+                "email": "admin@fleetease.com"
+            }
+        
+        # Create admin user
+        admin_user = {
+            "id": str(uuid.uuid4()),
+            "email": "admin@fleetease.com",
+            "password_hash": pwd_context.hash("admin123"),
+            "full_name": "Super Admin",
+            "role": "superadmin",
+            "company_id": None,
+            "phone": None,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await kvm_db.users.insert_one(admin_user)
+        
+        kvm_client.close()
+        
+        return {
+            "success": True,
+            "message": "Admin user created successfully",
+            "email": "admin@fleetease.com",
+            "password": "admin123"
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 # ============== LEGACY COMPANY ROUTES (for backward compatibility) ==============
 @api_router.post("/companies", response_model=CompanyResponse)
 async def create_company(company: CompanyCreate, user: dict = Depends(get_current_user)):
