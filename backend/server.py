@@ -635,22 +635,27 @@ async def get_superadmin_stats(user: dict = Depends(get_current_user)):
 async def deploy_company_frontend(company_code: str, backend_url: str, container_name: str):
     """
     Background task to build and deploy frontend to a company's container
+    Uses HTTPS API URL for proper browser communication
     """
     import asyncio
     
-    logger.info(f"Starting frontend deployment for {company_code}")
+    logger.info(f"[FRONTEND-DEPLOY] Starting frontend deployment for {company_code}")
+    logger.info(f"[FRONTEND-DEPLOY] Backend URL: {backend_url}")
+    logger.info(f"[FRONTEND-DEPLOY] Container: {container_name}")
     
     try:
         # Wait for container to be ready
-        await asyncio.sleep(30)
+        await asyncio.sleep(15)
         
         frontend_dir = "/app/frontend"
         build_dir = f"{frontend_dir}/build"
         
-        # Build frontend with company's backend URL
+        # Build frontend with company's backend URL (should be HTTPS for domains)
         env = os.environ.copy()
         env["REACT_APP_BACKEND_URL"] = backend_url
         env["CI"] = "false"
+        
+        logger.info(f"[FRONTEND-DEPLOY] Building frontend with REACT_APP_BACKEND_URL={backend_url}")
         
         result = subprocess.run(
             ["yarn", "build"],
@@ -662,8 +667,10 @@ async def deploy_company_frontend(company_code: str, backend_url: str, container
         )
         
         if result.returncode != 0:
-            logger.error(f"Frontend build failed for {company_code}: {result.stderr}")
-            return
+            logger.error(f"[FRONTEND-DEPLOY] Build failed for {company_code}: {result.stderr}")
+            return {"success": False, "error": result.stderr}
+        
+        logger.info(f"[FRONTEND-DEPLOY] Build completed successfully for {company_code}")
         
         # Create tar archive
         tar_buffer = io.BytesIO()
@@ -676,6 +683,8 @@ async def deploy_company_frontend(company_code: str, backend_url: str, container
         
         tar_data = tar_buffer.getvalue()
         
+        logger.info(f"[FRONTEND-DEPLOY] Uploading build to container {container_name}...")
+        
         # Upload to container
         upload_result = await portainer_service.upload_to_container(
             container_name=container_name,
@@ -684,19 +693,24 @@ async def deploy_company_frontend(company_code: str, backend_url: str, container
         )
         
         if upload_result.get('error'):
-            logger.error(f"Frontend upload failed for {company_code}: {upload_result.get('error')}")
-            return
+            logger.error(f"[FRONTEND-DEPLOY] Upload failed for {company_code}: {upload_result.get('error')}")
+            return {"success": False, "error": upload_result.get('error')}
+        
+        logger.info(f"[FRONTEND-DEPLOY] Upload successful, configuring Nginx...")
         
         # Configure Nginx for SPA routing
         nginx_result = await portainer_service.configure_nginx_spa(container_name)
         
         if nginx_result.get('error'):
-            logger.error(f"Nginx config failed for {company_code}: {nginx_result.get('error')}")
-        else:
-            logger.info(f"Frontend deployed successfully for {company_code}")
+            logger.error(f"[FRONTEND-DEPLOY] Nginx config failed for {company_code}: {nginx_result.get('error')}")
+            return {"success": False, "error": nginx_result.get('error')}
+        
+        logger.info(f"[FRONTEND-DEPLOY] Frontend deployed successfully for {company_code}")
+        return {"success": True}
             
     except Exception as e:
-        logger.error(f"Frontend deployment error for {company_code}: {str(e)}")
+        logger.error(f"[FRONTEND-DEPLOY] Error for {company_code}: {str(e)}")
+        return {"success": False, "error": str(e)}
 
 async def deploy_company_backend(company_code: str, container_name: str, mongo_service_name: str, db_name: str):
     """
