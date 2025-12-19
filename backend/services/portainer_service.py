@@ -390,18 +390,31 @@ class PortainerService:
                 return {'error': str(e)}
     
     async def get_next_port_offset(self, db) -> int:
-        """Get next available port offset based on existing companies"""
-        # Find the highest port_offset used
+        """Get next available port offset based on existing companies and Portainer stacks"""
+        # Find the highest port_offset used in database
         companies = await db.companies.find(
-            {'port_offset': {'$exists': True}},
+            {'port_offset': {'$exists': True, '$ne': None}},
             {'port_offset': 1}
         ).to_list(1000)
         
+        # Also check Portainer for existing stacks to avoid conflicts
+        try:
+            stacks = await self.get_stacks()
+            stack_count = len([s for s in stacks if isinstance(s, dict) and s.get('Name', '').startswith('rentacar_')])
+        except:
+            stack_count = 0
+        
         if not companies:
-            return 1
+            # Start from offset that accounts for existing Portainer stacks
+            # Add +5 buffer to avoid any potential conflicts
+            return max(stack_count + 5, 5)
         
         max_offset = max(c.get('port_offset', 0) for c in companies)
-        return max_offset + 1
+        # Ensure new offset is higher than both max in DB and stack count
+        next_offset = max(max_offset + 1, stack_count + 5)
+        
+        logger.info(f"[PORT] Next port offset: {next_offset} (DB max: {max_offset}, Portainer stacks: {stack_count})")
+        return next_offset
     
     async def create_full_stack(self, company_code: str, company_name: str, domain: str, port_offset: int) -> Dict[str, Any]:
         """
