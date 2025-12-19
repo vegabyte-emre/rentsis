@@ -199,13 +199,18 @@ services:
       - traefik_network
     labels:
       - "traefik.enable=true"
+      # Landing page router (domain.com and www.domain.com)
       - "traefik.http.routers.{safe_code}-web.rule=Host(`{domain}`) || Host(`www.{domain}`)"
       - "traefik.http.routers.{safe_code}-web.entrypoints=websecure"
       - "traefik.http.routers.{safe_code}-web.tls.certresolver=letsencrypt"
-      - "traefik.http.services.{safe_code}-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.{safe_code}-web.service={safe_code}-frontend"
+      # Admin panel router (panel.domain.com)
       - "traefik.http.routers.{safe_code}-panel.rule=Host(`panel.{domain}`)"
       - "traefik.http.routers.{safe_code}-panel.entrypoints=websecure"
       - "traefik.http.routers.{safe_code}-panel.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.{safe_code}-panel.service={safe_code}-frontend"
+      # Service definition
+      - "traefik.http.services.{safe_code}-frontend.loadbalancer.server.port=80"
 
 volumes:
   {company_code}_mongo_data:
