@@ -714,15 +714,18 @@ async def deploy_company_frontend(company_code: str, backend_url: str, container
 
 async def deploy_company_backend(company_code: str, container_name: str, mongo_service_name: str, db_name: str):
     """
-    Background task to deploy backend code and create admin user
+    Background task to deploy backend code to company container
     """
     import asyncio
     
-    logger.info(f"Starting backend deployment for {company_code}")
+    logger.info(f"[BACKEND-DEPLOY] Starting backend deployment for {company_code}")
+    logger.info(f"[BACKEND-DEPLOY] Container: {container_name}")
+    logger.info(f"[BACKEND-DEPLOY] MongoDB service: {mongo_service_name}")
+    logger.info(f"[BACKEND-DEPLOY] Database: {db_name}")
     
     try:
         # Wait for container to be ready
-        await asyncio.sleep(10)
+        await asyncio.sleep(5)
         
         backend_dir = "/app/backend"
         
@@ -742,7 +745,7 @@ async def deploy_company_backend(company_code: str, container_name: str, mongo_s
                         arcname = os.path.relpath(file_path, backend_dir)
                         tar.add(file_path, arcname=arcname)
             
-            # Add .env
+            # Add .env with correct settings
             env_content = f"""MONGO_URL=mongodb://{mongo_service_name}:27017
 DB_NAME={db_name}
 JWT_SECRET={company_code}_jwt_secret_2024
@@ -761,6 +764,8 @@ JWT_SECRET={company_code}_jwt_secret_2024
         
         tar_data = tar_buffer.getvalue()
         
+        logger.info(f"[BACKEND-DEPLOY] Uploading backend code to {container_name}...")
+        
         # Upload to container
         upload_result = await portainer_service.upload_to_container(
             container_name=container_name,
@@ -769,22 +774,32 @@ JWT_SECRET={company_code}_jwt_secret_2024
         )
         
         if upload_result.get('error'):
-            logger.error(f"Backend upload failed for {company_code}: {upload_result.get('error')}")
-            return
+            logger.error(f"[BACKEND-DEPLOY] Upload failed for {company_code}: {upload_result.get('error')}")
+            return {"success": False, "error": upload_result.get('error')}
+        
+        logger.info(f"[BACKEND-DEPLOY] Upload successful, installing dependencies...")
         
         # Install dependencies
-        await portainer_service.exec_in_container(
+        install_result = await portainer_service.exec_in_container(
             container_name=container_name,
             command='pip install "bcrypt>=4.0.0,<4.1.0" "passlib[bcrypt]>=1.7.4" motor python-jose python-dotenv httpx --quiet'
         )
         
-        # Restart container to load new code
-        await portainer_service.restart_container(container_name)
+        logger.info(f"[BACKEND-DEPLOY] Dependencies installed, restarting container...")
         
-        logger.info(f"Backend deployed successfully for {company_code}")
+        # Restart container to load new code
+        restart_result = await portainer_service.restart_container(container_name)
+        
+        if restart_result.get('error'):
+            logger.error(f"[BACKEND-DEPLOY] Restart failed for {company_code}: {restart_result.get('error')}")
+            return {"success": False, "error": restart_result.get('error')}
+        
+        logger.info(f"[BACKEND-DEPLOY] Backend deployed successfully for {company_code}")
+        return {"success": True}
         
     except Exception as e:
-        logger.error(f"Backend deployment error for {company_code}: {str(e)}")
+        logger.error(f"[BACKEND-DEPLOY] Error for {company_code}: {str(e)}")
+        return {"success": False, "error": str(e)}
 
 async def setup_company_database(company: dict, mongo_port: int):
     """
