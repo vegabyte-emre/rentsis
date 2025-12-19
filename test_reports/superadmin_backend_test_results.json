@@ -1,10 +1,10 @@
 {
   "summary": {
-    "total_tests": 22,
-    "passed_tests": 21,
-    "failed_tests": 1,
-    "success_rate": 95.45454545454545,
-    "test_timestamp": "2025-12-19T17:52:46.058453",
+    "total_tests": 26,
+    "passed_tests": 22,
+    "failed_tests": 4,
+    "success_rate": 84.61538461538461,
+    "test_timestamp": "2025-12-19T19:42:09.715017",
     "test_type": "SuperAdmin Backend API"
   },
   "test_results": [
@@ -12,133 +12,157 @@
       "test": "SuperAdmin login",
       "success": true,
       "details": "Role: superadmin",
-      "timestamp": "2025-12-19T17:52:44.813699"
+      "timestamp": "2025-12-19T19:42:07.008548"
     },
     {
       "test": "Get current SuperAdmin user",
       "success": true,
       "details": "Role: superadmin",
-      "timestamp": "2025-12-19T17:52:44.854514"
+      "timestamp": "2025-12-19T19:42:07.048988"
     },
     {
       "test": "SuperAdmin stats API",
       "success": true,
-      "details": "Companies: 7, Active: 1, Users: 9",
-      "timestamp": "2025-12-19T17:52:44.899552"
+      "details": "Companies: 0, Active: 0, Users: 5",
+      "timestamp": "2025-12-19T19:42:07.091748"
+    },
+    {
+      "test": "Portainer status API",
+      "success": true,
+      "details": "Connected: True, Stacks: 3, URL: https://72.61.158.147:9443",
+      "timestamp": "2025-12-19T19:42:07.506657"
+    },
+    {
+      "test": "Portainer status data structure",
+      "success": true,
+      "details": "",
+      "timestamp": "2025-12-19T19:42:07.506670"
     },
     {
       "test": "Create company",
       "success": true,
-      "details": "Company ID: 53aacc4d-e854-42f4-81c9-0931f97ebe6f",
-      "timestamp": "2025-12-19T17:52:45.163896"
+      "details": "Company ID: a564f33d-5f50-497d-9b04-af518ec3ad4f",
+      "timestamp": "2025-12-19T19:42:07.779471"
     },
     {
       "test": "Company data structure",
       "success": true,
       "details": "Status: pending",
-      "timestamp": "2025-12-19T17:52:45.163910"
+      "timestamp": "2025-12-19T19:42:07.779487"
     },
     {
       "test": "List companies",
       "success": true,
-      "details": "Found 10 companies",
-      "timestamp": "2025-12-19T17:52:45.211675"
+      "details": "Found 1 companies",
+      "timestamp": "2025-12-19T19:42:07.815616"
     },
     {
       "test": "Created company in list",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-19T17:52:45.211693"
+      "timestamp": "2025-12-19T19:42:07.815630"
     },
     {
       "test": "Company list data structure",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-19T17:52:45.211701"
+      "timestamp": "2025-12-19T19:42:07.815636"
     },
     {
       "test": "Get company details",
       "success": true,
-      "details": "Name: Test Company 20251219175244",
-      "timestamp": "2025-12-19T17:52:45.249635"
+      "details": "Name: Test Company 20251219194207",
+      "timestamp": "2025-12-19T19:42:07.855858"
     },
     {
       "test": "Company details data structure",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-19T17:52:45.249648"
+      "timestamp": "2025-12-19T19:42:07.855871"
     },
     {
       "test": "Activate company",
       "success": true,
       "details": "Response: {'message': 'Company status updated', 'status': 'active'}",
-      "timestamp": "2025-12-19T17:52:45.289285"
+      "timestamp": "2025-12-19T19:42:07.894874"
     },
     {
       "test": "Suspend company",
       "success": true,
       "details": "Response: {'message': 'Company status updated', 'status': 'suspended'}",
-      "timestamp": "2025-12-19T17:52:45.327322"
+      "timestamp": "2025-12-19T19:42:07.933300"
     },
     {
       "test": "Reactivate company",
       "success": true,
       "details": "",
-      "timestamp": "2025-12-19T17:52:45.366230"
+      "timestamp": "2025-12-19T19:42:07.968156"
+    },
+    {
+      "test": "Company provision API",
+      "success": false,
+      "details": "Status: 520, Response: {'detail': 'Provisioning failed: {\"message\":\"failed to deploy a stack: compose up operation failed: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint test20251219194207_mongodb (d79155ffa814bba6f7a713e1060cca15c76ecde5ed060d8e7a60b447e195c360): Bind for 0.0.0.0:12001 failed: port is already allocated\",\"details\":\"Failed to deploy a stack: compose up operation failed: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint test20251219194207_mongodb (d79155ffa814bba6f7a713e1060cca15c76ecde5ed060d8e7a60b447e195c360): Bind for 0.0.0.0:12001 failed: port is already allocated\"}'}",
+      "timestamp": "2025-12-19T19:42:08.831163"
     },
     {
       "test": "Firma Admin login",
       "success": true,
-      "details": "Role: firma_admin, Company: 53aacc4d-e854-42f4-81c9-0931f97ebe6f",
-      "timestamp": "2025-12-19T17:52:45.627133"
+      "details": "Role: firma_admin, Company: a564f33d-5f50-497d-9b04-af518ec3ad4f",
+      "timestamp": "2025-12-19T19:42:09.132678"
     },
     {
       "test": "Get current Firma Admin user",
       "success": true,
-      "details": "Company ID: 53aacc4d-e854-42f4-81c9-0931f97ebe6f",
-      "timestamp": "2025-12-19T17:52:45.663307"
+      "details": "Company ID: a564f33d-5f50-497d-9b04-af518ec3ad4f",
+      "timestamp": "2025-12-19T19:42:09.170465"
+    },
+    {
+      "test": "Bitlis tenant admin login",
+      "success": false,
+      "details": "Status: 401, Response: {'detail': 'Invalid credentials'}",
+      "timestamp": "2025-12-19T19:42:09.205205"
     },
     {
       "test": "Firma Admin blocked from SuperAdmin stats",
       "success": true,
       "details": "Status: 403",
-      "timestamp": "2025-12-19T17:52:45.702976"
+      "timestamp": "2025-12-19T19:42:09.241351"
     },
     {
       "test": "Firma Admin blocked from SuperAdmin companies",
       "success": true,
       "details": "Status: 403",
-      "timestamp": "2025-12-19T17:52:45.750470"
+      "timestamp": "2025-12-19T19:42:09.275340"
     },
     {
       "test": "Unauthenticated access blocked from SuperAdmin stats",
       "success": false,
       "details": "Status: 403",
-      "timestamp": "2025-12-19T17:52:45.785052"
+      "timestamp": "2025-12-19T19:42:09.308529"
     },
     {
       "test": "Delete company",
-      "success": true,
-      "details": "Response: {'message': 'Company deleted successfully'}",
-      "timestamp": "2025-12-19T17:52:45.825743"
+      "success": false,
+      "details": "Response: {'message': 'Firma ve tüm verileri silindi', 'company_name': 'Test Company 20251219194207', 'deleted_resources': ['1 kullanıcı', 'Firma kaydı'], 'errors': None}",
+      "timestamp": "2025-12-19T19:42:09.346631"
     },
     {
-      "test": "Company marked as deleted",
+      "test": "Company removed from system",
       "success": true,
-      "details": "Status: deleted, Active: False",
-      "timestamp": "2025-12-19T17:52:45.902971"
+      "details": "Status: 404",
+      "timestamp": "2025-12-19T19:42:09.382999"
     },
     {
       "test": "Invalid company ID returns 404",
       "success": true,
       "details": "Status: 404",
-      "timestamp": "2025-12-19T17:52:45.980427"
+      "timestamp": "2025-12-19T19:42:09.418565"
     },
     {
       "test": "Duplicate company code blocked",
       "success": true,
       "details": "Status: 400",
-      "timestamp": "2025-12-19T17:52:46.058425"
+      "timestamp": "2025-12-19T19:42:09.714992"
     }
   ]
 }
