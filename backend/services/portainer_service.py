@@ -421,6 +421,23 @@ class PortainerService:
             return result
         return []
     
+    async def get_containers(self) -> list:
+        """Get all containers from Portainer"""
+        endpoint = f"endpoints/{self.endpoint_id}/docker/containers/json?all=true"
+        result = await self._request('GET', endpoint)
+        if isinstance(result, list):
+            return [
+                {
+                    'id': c.get('Id', '')[:12],
+                    'names': c.get('Names', []),
+                    'state': c.get('State'),
+                    'status': c.get('Status'),
+                    'image': c.get('Image')
+                }
+                for c in result
+            ]
+        return []
+    
     async def delete_stack(self, stack_id: int) -> Dict[str, Any]:
         """Delete a stack by ID"""
         endpoint = f"stacks/{stack_id}?endpointId={self.endpoint_id}"
