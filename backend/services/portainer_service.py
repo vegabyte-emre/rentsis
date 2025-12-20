@@ -1175,17 +1175,68 @@ class PortainerService:
     async def setup_tenant_database(self, mongo_port: int, db_name: str, admin_email: str, admin_password: str) -> Dict[str, Any]:
         """
         Setup tenant MongoDB with admin user.
-        Connects to tenant's MongoDB via exposed port.
+        Creates password hash inside the backend container for bcrypt compatibility.
         """
-        from motor.motor_asyncio import AsyncIOMotorClient
-        from passlib.context import CryptContext
         import uuid
         from datetime import datetime, timezone
         
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        
         try:
-            # Connect to tenant MongoDB
+            # Generate user data
+            user_id = str(uuid.uuid4())
+            created_at = datetime.now(timezone.utc).isoformat()
+            
+            # Get backend container name from db_name
+            safe_code = db_name.replace('_db', '')
+            backend_container = f"{safe_code}_backend"
+            
+            container_id = await self.get_container_id(backend_container)
+            if not container_id:
+                # Fallback: hash locally
+                from passlib.context import CryptContext
+                pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+                password_hash = pwd_context.hash(admin_password)
+            else:
+                # Create hash inside container for bcrypt compatibility
+                import asyncio
+                await asyncio.sleep(5)  # Wait for container to be ready
+                
+                exec_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/{container_id}/exec"
+                hash_cmd = f"python3 -c \"from passlib.context import CryptContext; print(CryptContext(schemes=['bcrypt']).hash('{admin_password}'))\""
+                
+                exec_result = await self._request('POST', exec_endpoint, data={
+                    'Cmd': ['sh', '-c', hash_cmd],
+                    'AttachStdout': True,
+                    'AttachStderr': True
+                })
+                
+                if 'Id' in exec_result:
+                    exec_id = exec_result['Id']
+                    async with httpx.AsyncClient(verify=False, timeout=30) as client:
+                        start_resp = await client.post(
+                            f"{self.base_url}/api/endpoints/{self.endpoint_id}/docker/exec/{exec_id}/start",
+                            headers=self.headers,
+                            json={"Detach": False}
+                        )
+                        # Parse hash from output
+                        output = start_resp.text.strip()
+                        # Find the bcrypt hash in output
+                        import re
+                        hash_match = re.search(r'\$2[aby]\$\d+\$[A-Za-z0-9./]{53}', output)
+                        if hash_match:
+                            password_hash = hash_match.group()
+                        else:
+                            # Fallback to local hash
+                            from passlib.context import CryptContext
+                            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+                            password_hash = pwd_context.hash(admin_password)
+                else:
+                    from passlib.context import CryptContext
+                    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+                    password_hash = pwd_context.hash(admin_password)
+            
+            # Connect to tenant MongoDB and create user
+            from motor.motor_asyncio import AsyncIOMotorClient
+            
             mongo_url = f"mongodb://{SERVER_IP}:{mongo_port}"
             client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=30000)
             tenant_db = client[db_name]
@@ -1195,18 +1246,18 @@ class PortainerService:
             
             if not existing:
                 admin_user = {
-                    "id": str(uuid.uuid4()),
+                    "id": user_id,
                     "email": admin_email,
-                    "password_hash": pwd_context.hash(admin_password),
+                    "password_hash": password_hash,
                     "full_name": "Firma Admin",
                     "role": "firma_admin",
                     "company_id": None,
                     "is_active": True,
-                    "created_at": datetime.now(timezone.utc).isoformat()
+                    "created_at": created_at
                 }
                 await tenant_db.users.insert_one(admin_user)
                 logger.info(f"[DB-SETUP] Admin user created: {admin_email}")
-                result = {'success': True, 'admin_email': admin_email, 'created': True}
+                result = {'success': True, 'admin_email': admin_email, 'admin_password': admin_password, 'created': True}
             else:
                 logger.info(f"[DB-SETUP] Admin user already exists: {admin_email}")
                 result = {'success': True, 'admin_email': admin_email, 'created': False, 'already_exists': True}
