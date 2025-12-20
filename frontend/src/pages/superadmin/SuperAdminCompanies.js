@@ -386,23 +386,18 @@ export function SuperAdminCompanies() {
                               </DropdownMenuItem>
                             ) : null}
                             <DropdownMenuSeparator className="bg-slate-700" />
-                            {/* Portainer Actions */}
-                            {!company.portainer_stack_id ? (
-                              <DropdownMenuItem
-                                className="text-cyan-400 hover:bg-slate-700 cursor-pointer"
-                                onClick={() => handleProvision(company.id, company.name)}
-                              >
-                                <Rocket className="h-4 w-4 mr-2" />
-                                Portainer'a Deploy Et
-                              </DropdownMenuItem>
-                            ) : (
+                            {/* Portainer Actions - Stack Management Only */}
+                            {company.portainer_stack_id && (
                               <>
                                 <DropdownMenuItem
-                                  className="text-green-400 hover:bg-slate-700 cursor-pointer"
-                                  onClick={() => handleDeployCode(company.id, company.name)}
+                                  className="text-blue-400 hover:bg-slate-700 cursor-pointer"
+                                  onClick={() => {
+                                    const frontendUrl = company.urls?.frontend || `http://72.61.158.147:${company.ports?.frontend}`;
+                                    window.open(frontendUrl, '_blank');
+                                  }}
                                 >
-                                  <Rocket className="h-4 w-4 mr-2" />
-                                  Kod Yükle (Frontend/Backend)
+                                  <ExternalLink className="h-4 w-4 mr-2" />
+                                  Panele Git
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-orange-400 hover:bg-slate-700 cursor-pointer"
