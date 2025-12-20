@@ -1766,6 +1766,39 @@ async def update_vehicle_status(vehicle_id: str, status: VehicleStatus, user: di
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return {"message": "Status updated", "status": status.value}
 
+@api_router.delete("/vehicles/{vehicle_id}")
+async def delete_vehicle(vehicle_id: str, user: dict = Depends(get_current_user)):
+    """Delete a vehicle"""
+    if user["role"] not in [UserRole.SUPERADMIN.value, UserRole.FIRMA_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Check if vehicle exists
+    vehicle = await db.vehicles.find_one({"id": vehicle_id}, {"_id": 0})
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    # Check company ownership for firma_admin
+    if user["role"] == UserRole.FIRMA_ADMIN.value:
+        if vehicle.get("company_id") != user.get("company_id"):
+            raise HTTPException(status_code=403, detail="Cannot delete another company's vehicle")
+    
+    # Check if vehicle has active reservations
+    active_reservation = await db.reservations.find_one({
+        "vehicle_id": vehicle_id,
+        "status": {"$in": ["pending", "confirmed", "active"]}
+    })
+    if active_reservation:
+        raise HTTPException(status_code=400, detail="Cannot delete vehicle with active reservations")
+    
+    # Delete the vehicle
+    result = await db.vehicles.delete_one({"id": vehicle_id})
+    
+    if result.deleted_count > 0:
+        logger.info(f"Vehicle {vehicle_id} deleted by {user['email']}")
+        return {"message": "Vehicle deleted successfully", "vehicle_id": vehicle_id}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to delete vehicle")
+
 # ============== CUSTOMER ROUTES ==============
 @api_router.post("/customers", response_model=CustomerResponse)
 async def create_customer(customer: CustomerCreate, user: dict = Depends(get_current_user)):
