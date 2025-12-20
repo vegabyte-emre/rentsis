@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Menu,
   Palette,
+  HelpCircle,
 } from "lucide-react";
 
 // Check if we're on panel subdomain
@@ -36,6 +37,7 @@ const menuItems = [
   { icon: CreditCard, label: "Ödemeler", path: `${pathPrefix}/payments`, roles: ["superadmin", "firma_admin", "muhasebe"] },
   { icon: FileText, label: "Raporlar", path: `${pathPrefix}/reports`, roles: ["superadmin", "firma_admin", "muhasebe"] },
   { icon: Palette, label: "Tema Mağazası", path: `${pathPrefix}/theme-store`, roles: ["superadmin", "firma_admin"] },
+  { icon: HelpCircle, label: "Destek", path: `${pathPrefix}/support`, roles: ["superadmin", "firma_admin", "operasyon", "personel", "muhasebe"] },
   { icon: Settings, label: "Ayarlar", path: `${pathPrefix}/settings`, roles: ["superadmin", "firma_admin"] },
 ];
 
