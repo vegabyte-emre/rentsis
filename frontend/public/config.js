@@ -1,3 +1,1 @@
-window.__RUNTIME_CONFIG__ = {
-  API_URL: ""  // Bu her firma için değiştirilecek
-};
+window.REACT_APP_BACKEND_URL = 'http://72.61.158.147:8001';
