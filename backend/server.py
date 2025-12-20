@@ -2804,6 +2804,356 @@ async def get_demo_requests(user: dict = Depends(get_current_user)):
     requests = await db.demo_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return requests
 
+# ============== SUBSCRIPTION MANAGEMENT ==============
+
+@api_router.get("/subscription/plans")
+async def get_subscription_plans():
+    """Public: Get all available subscription plans"""
+    return SUBSCRIPTION_PLANS
+
+@api_router.get("/superadmin/subscriptions")
+async def get_all_subscriptions(user: dict = Depends(get_current_user)):
+    """SuperAdmin: Get all company subscriptions with payment history"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view subscriptions")
+    
+    # Get all companies with subscription info
+    companies = await db.companies.find(
+        {},
+        {"_id": 0, "id": 1, "name": 1, "code": 1, "status": 1, "subscription_plan": 1, 
+         "billing_cycle": 1, "subscription_start": 1, "subscription_end": 1,
+         "trial_end": 1, "admin_email": 1, "created_at": 1}
+    ).to_list(1000)
+    
+    # Get payment summary for each company
+    for company in companies:
+        payments = await db.subscription_payments.find(
+            {"company_id": company["id"]},
+            {"_id": 0}
+        ).sort("created_at", -1).to_list(10)
+        company["recent_payments"] = payments
+        
+        # Calculate total revenue from this company
+        total = await db.subscription_payments.aggregate([
+            {"$match": {"company_id": company["id"], "status": "completed"}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+        ]).to_list(1)
+        company["total_revenue"] = total[0]["total"] if total else 0
+    
+    return companies
+
+@api_router.post("/superadmin/subscriptions/{company_id}/activate")
+async def activate_subscription(
+    company_id: str,
+    plan: str,
+    billing_cycle: str = "monthly",
+    user: dict = Depends(get_current_user)
+):
+    """SuperAdmin: Manually activate a subscription for a company"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can activate subscriptions")
+    
+    company = await db.companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    if plan not in SUBSCRIPTION_PLANS:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    
+    plan_details = SUBSCRIPTION_PLANS[plan]
+    
+    # Calculate subscription period
+    now = datetime.now(timezone.utc)
+    if billing_cycle == "yearly":
+        end_date = now + timedelta(days=365)
+        amount = plan_details["price_yearly"]
+    else:
+        end_date = now + timedelta(days=30)
+        amount = plan_details["price_monthly"]
+    
+    # Update company subscription
+    await db.companies.update_one(
+        {"id": company_id},
+        {"$set": {
+            "subscription_plan": plan,
+            "billing_cycle": billing_cycle,
+            "subscription_start": now.isoformat(),
+            "subscription_end": end_date.isoformat(),
+            "max_vehicles": plan_details["max_vehicles"],
+            "max_users": plan_details["max_users"],
+            "features": plan_details["features"],
+            "status": CompanyStatus.PENDING.value if company.get("status") == CompanyStatus.PENDING_PAYMENT.value else company.get("status"),
+            "updated_at": now.isoformat()
+        }}
+    )
+    
+    # Create payment record (manual activation)
+    payment_record = {
+        "id": str(uuid.uuid4()),
+        "company_id": company_id,
+        "company_name": company["name"],
+        "plan": plan,
+        "billing_cycle": billing_cycle,
+        "amount": amount,
+        "currency": "TRY",
+        "payment_method": "manual",
+        "status": PaymentStatus.COMPLETED.value,
+        "notes": f"Manually activated by {user['email']}",
+        "created_at": now.isoformat(),
+        "created_by": user["id"]
+    }
+    await db.subscription_payments.insert_one(payment_record)
+    
+    logger.info(f"Subscription activated for {company['name']}: {plan} ({billing_cycle})")
+    
+    return {
+        "success": True,
+        "message": f"Subscription activated: {plan_details['name']} ({billing_cycle})",
+        "subscription_end": end_date.isoformat(),
+        "amount": amount
+    }
+
+@api_router.post("/superadmin/subscriptions/{company_id}/extend")
+async def extend_subscription(
+    company_id: str,
+    months: int = 1,
+    user: dict = Depends(get_current_user)
+):
+    """SuperAdmin: Extend a company's subscription"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can extend subscriptions")
+    
+    company = await db.companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    # Calculate new end date
+    current_end = company.get("subscription_end")
+    if current_end:
+        current_end = datetime.fromisoformat(current_end.replace('Z', '+00:00'))
+    else:
+        current_end = datetime.now(timezone.utc)
+    
+    new_end = current_end + timedelta(days=30 * months)
+    
+    await db.companies.update_one(
+        {"id": company_id},
+        {"$set": {
+            "subscription_end": new_end.isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    logger.info(f"Subscription extended for {company['name']}: +{months} months")
+    
+    return {
+        "success": True,
+        "message": f"Subscription extended by {months} month(s)",
+        "new_end_date": new_end.isoformat()
+    }
+
+@api_router.post("/superadmin/subscriptions/{company_id}/suspend")
+async def suspend_subscription(company_id: str, reason: str = "", user: dict = Depends(get_current_user)):
+    """SuperAdmin: Suspend a company's subscription"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can suspend subscriptions")
+    
+    company = await db.companies.find_one({"id": company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    await db.companies.update_one(
+        {"id": company_id},
+        {"$set": {
+            "status": CompanyStatus.SUSPENDED.value,
+            "suspension_reason": reason,
+            "suspended_at": datetime.now(timezone.utc).isoformat(),
+            "suspended_by": user["id"],
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    logger.info(f"Subscription suspended for {company['name']}: {reason}")
+    
+    return {"success": True, "message": "Subscription suspended"}
+
+# ============== PAYMENT RECORDS ==============
+
+class PaymentRecordCreate(BaseModel):
+    company_id: str
+    amount: float
+    payment_method: str
+    reference_no: Optional[str] = None
+    notes: Optional[str] = None
+
+@api_router.post("/superadmin/payments")
+async def record_payment(payment: PaymentRecordCreate, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Record a manual payment (bank transfer, etc.)"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can record payments")
+    
+    company = await db.companies.find_one({"id": payment.company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    now = datetime.now(timezone.utc)
+    
+    payment_record = {
+        "id": str(uuid.uuid4()),
+        "company_id": payment.company_id,
+        "company_name": company["name"],
+        "plan": company.get("subscription_plan", "unknown"),
+        "billing_cycle": company.get("billing_cycle", "monthly"),
+        "amount": payment.amount,
+        "currency": "TRY",
+        "payment_method": payment.payment_method,
+        "reference_no": payment.reference_no,
+        "status": PaymentStatus.COMPLETED.value,
+        "notes": payment.notes,
+        "created_at": now.isoformat(),
+        "created_by": user["id"]
+    }
+    
+    await db.subscription_payments.insert_one(payment_record)
+    
+    # Extend subscription based on payment
+    plan = company.get("subscription_plan", "starter")
+    plan_details = SUBSCRIPTION_PLANS.get(plan, SUBSCRIPTION_PLANS["starter"])
+    
+    billing_cycle = company.get("billing_cycle", "monthly")
+    expected_amount = plan_details["price_yearly"] if billing_cycle == "yearly" else plan_details["price_monthly"]
+    
+    # Calculate months to extend (based on payment amount)
+    if expected_amount > 0:
+        months = int(payment.amount / (expected_amount / (12 if billing_cycle == "yearly" else 1)))
+        months = max(1, months)  # At least 1 month
+    else:
+        months = 1
+    
+    # Extend subscription
+    current_end = company.get("subscription_end")
+    if current_end:
+        current_end = datetime.fromisoformat(current_end.replace('Z', '+00:00'))
+    else:
+        current_end = now
+    
+    new_end = current_end + timedelta(days=30 * months)
+    
+    # Update company status if pending payment
+    new_status = company.get("status")
+    if new_status == CompanyStatus.PENDING_PAYMENT.value:
+        new_status = CompanyStatus.PENDING.value
+    
+    await db.companies.update_one(
+        {"id": payment.company_id},
+        {"$set": {
+            "subscription_end": new_end.isoformat(),
+            "status": new_status,
+            "last_payment_date": now.isoformat(),
+            "updated_at": now.isoformat()
+        }}
+    )
+    
+    logger.info(f"Payment recorded for {company['name']}: ₺{payment.amount} ({payment.payment_method})")
+    
+    return {
+        "success": True,
+        "message": f"Payment of ₺{payment.amount} recorded",
+        "payment_id": payment_record["id"],
+        "subscription_extended_to": new_end.isoformat(),
+        "months_added": months
+    }
+
+@api_router.get("/superadmin/payments")
+async def get_all_payments(
+    user: dict = Depends(get_current_user),
+    limit: int = 100,
+    skip: int = 0
+):
+    """SuperAdmin: Get all payment records"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view payments")
+    
+    payments = await db.subscription_payments.find(
+        {},
+        {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    
+    total = await db.subscription_payments.count_documents({})
+    
+    return {
+        "payments": payments,
+        "total": total,
+        "limit": limit,
+        "skip": skip
+    }
+
+@api_router.get("/superadmin/finance/summary")
+async def get_finance_summary(user: dict = Depends(get_current_user)):
+    """SuperAdmin: Get financial summary and statistics"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view finance summary")
+    
+    now = datetime.now(timezone.utc)
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    start_of_year = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    # Total revenue
+    total_revenue = await db.subscription_payments.aggregate([
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    
+    # This month revenue
+    monthly_revenue = await db.subscription_payments.aggregate([
+        {"$match": {"status": "completed", "created_at": {"$gte": start_of_month.isoformat()}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    
+    # This year revenue
+    yearly_revenue = await db.subscription_payments.aggregate([
+        {"$match": {"status": "completed", "created_at": {"$gte": start_of_year.isoformat()}}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}}
+    ]).to_list(1)
+    
+    # Revenue by plan
+    revenue_by_plan = await db.subscription_payments.aggregate([
+        {"$match": {"status": "completed"}},
+        {"$group": {"_id": "$plan", "total": {"$sum": "$amount"}, "count": {"$sum": 1}}}
+    ]).to_list(10)
+    
+    # Active subscriptions count by plan
+    subscriptions_by_plan = await db.companies.aggregate([
+        {"$match": {"status": {"$in": ["active", "pending"]}}},
+        {"$group": {"_id": "$subscription_plan", "count": {"$sum": 1}}}
+    ]).to_list(10)
+    
+    # Companies with expiring subscriptions (next 30 days)
+    expiring_soon = await db.companies.find({
+        "status": "active",
+        "subscription_end": {
+            "$lte": (now + timedelta(days=30)).isoformat(),
+            "$gte": now.isoformat()
+        }
+    }, {"_id": 0, "id": 1, "name": 1, "subscription_end": 1, "subscription_plan": 1}).to_list(100)
+    
+    # Recent payments
+    recent_payments = await db.subscription_payments.find(
+        {"status": "completed"},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(10).to_list(10)
+    
+    return {
+        "total_revenue": total_revenue[0]["total"] if total_revenue else 0,
+        "monthly_revenue": monthly_revenue[0]["total"] if monthly_revenue else 0,
+        "yearly_revenue": yearly_revenue[0]["total"] if yearly_revenue else 0,
+        "revenue_by_plan": {item["_id"]: {"total": item["total"], "count": item["count"]} for item in revenue_by_plan},
+        "subscriptions_by_plan": {item["_id"]: item["count"] for item in subscriptions_by_plan},
+        "expiring_soon": expiring_soon,
+        "recent_payments": recent_payments,
+        "currency": "TRY"
+    }
+
 app.include_router(api_router)
 
 app.add_middleware(
