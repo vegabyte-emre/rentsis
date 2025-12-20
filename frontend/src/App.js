@@ -43,6 +43,9 @@ import { Reservation } from "./pages/public/Reservation";
 // Landing Page (SaaS Marketing)
 import { LandingPage } from "./pages/landing/LandingPage";
 
+// Support Page (Tenant)
+import { Support } from "./pages/Support";
+
 import { Toaster } from "./components/ui/sonner";
 
 // Protected Route Component (for admin panel)
