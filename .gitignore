@@ -8,3 +8,7 @@ __pycache__/
 .emergent/
 .vscode/
 .idea/
+-e 
+# Environment files
+*.env
+*.env.*
