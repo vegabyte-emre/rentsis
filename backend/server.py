@@ -1053,33 +1053,46 @@ async def provision_company(company_id: str, background_tasks: BackgroundTasks, 
             }}
         )
         
-        # Setup database with admin user (synchronous - runs from this server)
-        # Wait a bit for MongoDB to start
-        import asyncio
-        await asyncio.sleep(10)
-        
-        # Get company with admin credentials
-        updated_company = await db.companies.find_one({"id": company_id}, {"_id": 0})
-        mongo_port = result.get("ports", {}).get("mongodb")
-        safe_code = company["code"].replace('-', '').replace('_', '')
-        db_name = f"{safe_code}_db"
-        
-        if updated_company and mongo_port:
-            try:
-                db_setup_result = await setup_company_database(updated_company, mongo_port, db_name)
-                logger.info(f"[PROVISION] Database setup result: {db_setup_result}")
-            except Exception as e:
-                logger.error(f"[PROVISION] Database setup error: {str(e)}")
-        
-        return {
-            "message": "Company provisioned successfully",
-            "stack_id": result.get("stack_id"),
-            "stack_name": result.get("stack_name"),
-            "urls": result.get("urls"),
-            "ports": result.get("ports"),
-            "admin_email": updated_company.get("admin_email") if updated_company else None,
-            "note": "Stack ve database kuruldu. Frontend/Backend template'den yüklendi."
-        }
+        # FULL TENANT DEPLOYMENT via Portainer API
+        # This copies from template, installs deps, creates config, and sets up DB
+        if domain:
+            logger.info(f"[PROVISION] Starting full deployment for {company['code']}")
+            
+            admin_email = company.get("admin_email", f"admin@{domain}")
+            admin_password = company.get("admin_password", "admin123")
+            mongo_port = result.get("ports", {}).get("mongodb")
+            
+            # Run full deployment via Portainer API
+            deploy_result = await portainer_service.full_tenant_deployment(
+                company_code=company["code"],
+                domain=domain,
+                admin_email=admin_email,
+                admin_password=admin_password,
+                mongo_port=mongo_port
+            )
+            
+            logger.info(f"[PROVISION] Full deployment result: {deploy_result.get('success')}")
+            
+            return {
+                "message": "Company provisioned and deployed successfully",
+                "stack_id": result.get("stack_id"),
+                "stack_name": result.get("stack_name"),
+                "urls": result.get("urls"),
+                "ports": result.get("ports"),
+                "deployment": deploy_result,
+                "admin_email": admin_email,
+                "note": "Stack oluşturuldu, template'den kod kopyalandı, database kuruldu."
+            }
+        else:
+            # No domain - just MongoDB setup
+            return {
+                "message": "Company provisioned (MongoDB only)",
+                "stack_id": result.get("stack_id"),
+                "stack_name": result.get("stack_name"),
+                "urls": result.get("urls"),
+                "ports": result.get("ports"),
+                "note": "Domain belirtilmediği için sadece MongoDB kuruldu."
+            }
     else:
         # Revert status
         await db.companies.update_one(
