@@ -51,16 +51,19 @@ export function NewCompany() {
       // 1. Firma oluştur
       const response = await axios.post(`${API_URL}/api/superadmin/companies`, formData);
       const companyId = response.data.id;
-      toast.success("Firma oluşturuldu, deploy başlatılıyor...");
+      toast.success("Firma oluşturuldu!");
       
-      // 2. Domain varsa otomatik provision başlat
-      if (formData.domain) {
-        try {
-          await axios.post(`${API_URL}/api/superadmin/companies/${companyId}/provision`);
-          toast.success("Firma deploy edildi! Kurulum ~2 dakika sürecek.", { duration: 5000 });
-        } catch (provisionError) {
-          toast.error("Deploy başlatılamadı: " + (provisionError.response?.data?.detail || "Hata"));
+      // 2. Otomatik provision başlat (domain olsun veya olmasın)
+      try {
+        toast.loading("Portainer'a deploy ediliyor...", { id: "provision" });
+        await axios.post(`${API_URL}/api/superadmin/companies/${companyId}/provision`);
+        if (formData.domain) {
+          toast.success("Firma deploy edildi! Backend, Frontend ve Database kurulumu ~2-3 dakika sürecek.", { id: "provision", duration: 6000 });
+        } else {
+          toast.success("Firma deploy edildi! Sadece MongoDB kuruldu (domain belirtilmedi).", { id: "provision", duration: 5000 });
         }
+      } catch (provisionError) {
+        toast.error("Deploy başlatılamadı: " + (provisionError.response?.data?.detail || "Hata"), { id: "provision" });
       }
       
       navigate("/superadmin/companies");
