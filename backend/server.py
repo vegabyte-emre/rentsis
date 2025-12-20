@@ -3154,6 +3154,318 @@ async def get_finance_summary(user: dict = Depends(get_current_user)):
         "currency": "TRY"
     }
 
+# ============== IYZICO PAYMENT INTEGRATION ==============
+
+from services.iyzico_service import iyzico_service
+
+class IyzicoCheckoutRequest(BaseModel):
+    company_id: str
+    plan: str  # starter, professional, enterprise
+    billing_cycle: str = "monthly"  # monthly, yearly
+
+class IyzicoCallbackPayload(BaseModel):
+    token: str
+    conversationId: Optional[str] = None
+
+@api_router.get("/payment/iyzico/status")
+async def get_iyzico_status():
+    """Check if iyzico is configured"""
+    return {
+        "configured": iyzico_service.is_configured,
+        "base_url": iyzico_service.base_url if iyzico_service.is_configured else None
+    }
+
+@api_router.post("/payment/iyzico/checkout/initialize")
+async def initialize_iyzico_checkout(
+    request: IyzicoCheckoutRequest,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(get_current_user)
+):
+    """Initialize iyzico checkout form for subscription payment"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can initialize payments")
+    
+    if not iyzico_service.is_configured:
+        raise HTTPException(
+            status_code=400, 
+            detail="iyzico API keys not configured. Please add IYZICO_API_KEY and IYZICO_SECRET_KEY to backend/.env"
+        )
+    
+    company = await db.companies.find_one({"id": request.company_id})
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    
+    # Calculate price based on plan
+    plan_prices = {
+        "starter": {"monthly": 999.00, "yearly": 9990.00},
+        "professional": {"monthly": 2499.00, "yearly": 24990.00},
+        "enterprise": {"monthly": 4999.00, "yearly": 49990.00}
+    }
+    
+    price_info = plan_prices.get(request.plan, plan_prices["starter"])
+    price = price_info.get(request.billing_cycle, price_info["monthly"])
+    
+    # Get company admin info for buyer
+    admin = await db.users.find_one({"company_id": request.company_id, "role": "firma_admin"})
+    if not admin:
+        admin = {"email": company.get("email", "admin@example.com"), "full_name": company["name"]}
+    
+    # Prepare buyer info
+    buyer = {
+        "id": request.company_id,
+        "name": admin.get("full_name", company["name"]).split()[0] if admin.get("full_name") else "Admin",
+        "surname": admin.get("full_name", company["name"]).split()[-1] if admin.get("full_name") and len(admin.get("full_name", "").split()) > 1 else "User",
+        "gsmNumber": company.get("phone", "+905000000000"),
+        "email": admin.get("email", company.get("email", "admin@example.com")),
+        "identityNumber": "11111111111",  # TC Kimlik No (test)
+        "registrationAddress": company.get("address", "İstanbul, Türkiye"),
+        "ip": "85.34.78.112",
+        "city": "Istanbul",
+        "country": "Turkey"
+    }
+    
+    address = {
+        "contactName": buyer["name"] + " " + buyer["surname"],
+        "city": "Istanbul",
+        "country": "Turkey",
+        "address": company.get("address", "İstanbul, Türkiye")
+    }
+    
+    basket_items = [
+        {
+            "id": f"SUB_{request.plan.upper()}_{request.billing_cycle.upper()}",
+            "name": f"FleetEase {request.plan.title()} Plan ({request.billing_cycle.title()})",
+            "category1": "SaaS Subscription",
+            "category2": "Car Rental Software",
+            "itemType": "VIRTUAL",
+            "price": str(price)
+        }
+    ]
+    
+    # Get callback URL from environment
+    frontend_url = os.environ.get("FRONTEND_URL", "https://carfleet-hub-5.preview.emergentagent.com")
+    callback_url = f"{frontend_url}/superadmin/payment/callback"
+    
+    result = await iyzico_service.create_checkout_form(
+        price=price,
+        paid_price=price,
+        basket_id=f"BASKET_{request.company_id}_{request.plan}",
+        buyer=buyer,
+        shipping_address=address,
+        billing_address=address,
+        basket_items=basket_items,
+        callback_url=callback_url
+    )
+    
+    if result.get("status") == "success":
+        # Store checkout session
+        session_doc = {
+            "id": str(uuid.uuid4()),
+            "conversation_id": result.get("conversationId"),
+            "token": result.get("token"),
+            "company_id": request.company_id,
+            "plan": request.plan,
+            "billing_cycle": request.billing_cycle,
+            "amount": price,
+            "status": "initiated",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_by": user["id"]
+        }
+        await db.iyzico_sessions.insert_one(session_doc)
+        
+        return {
+            "success": True,
+            "token": result.get("token"),
+            "checkoutFormContent": result.get("checkoutFormContent"),
+            "paymentPageUrl": result.get("paymentPageUrl"),
+            "tokenExpireTime": result.get("tokenExpireTime"),
+            "conversationId": result.get("conversationId")
+        }
+    else:
+        logger.error(f"iyzico checkout init failed: {result}")
+        raise HTTPException(
+            status_code=400, 
+            detail=result.get("errorMessage", "Failed to initialize checkout")
+        )
+
+@api_router.post("/payment/iyzico/callback")
+async def iyzico_payment_callback(request: Request):
+    """Handle iyzico payment callback"""
+    try:
+        # Get token from form data or JSON
+        content_type = request.headers.get("content-type", "")
+        
+        if "application/x-www-form-urlencoded" in content_type:
+            form_data = await request.form()
+            token = form_data.get("token")
+        else:
+            body = await request.json()
+            token = body.get("token")
+        
+        if not token:
+            raise HTTPException(status_code=400, detail="Token is required")
+        
+        # Retrieve checkout result
+        result = await iyzico_service.retrieve_checkout_result(token)
+        
+        # Find the session
+        session = await db.iyzico_sessions.find_one({"token": token})
+        
+        if result.get("status") == "success" and result.get("paymentStatus") == "SUCCESS":
+            # Payment successful
+            now = datetime.now(timezone.utc)
+            
+            # Update session
+            await db.iyzico_sessions.update_one(
+                {"token": token},
+                {"$set": {
+                    "status": "completed",
+                    "payment_id": result.get("paymentId"),
+                    "completed_at": now.isoformat()
+                }}
+            )
+            
+            if session:
+                company_id = session["company_id"]
+                plan = session["plan"]
+                billing_cycle = session["billing_cycle"]
+                amount = session["amount"]
+                
+                # Calculate subscription period
+                if billing_cycle == "yearly":
+                    months = 12
+                else:
+                    months = 1
+                
+                new_end = now + timedelta(days=30 * months)
+                
+                # Update company subscription
+                await db.companies.update_one(
+                    {"id": company_id},
+                    {"$set": {
+                        "status": CompanyStatus.ACTIVE.value,
+                        "subscription_plan": plan,
+                        "billing_cycle": billing_cycle,
+                        "subscription_start": now.isoformat(),
+                        "subscription_end": new_end.isoformat(),
+                        "last_payment_date": now.isoformat(),
+                        "updated_at": now.isoformat()
+                    }}
+                )
+                
+                # Record payment
+                payment_record = {
+                    "id": str(uuid.uuid4()),
+                    "company_id": company_id,
+                    "plan": plan,
+                    "billing_cycle": billing_cycle,
+                    "amount": amount,
+                    "currency": "TRY",
+                    "payment_method": "iyzico",
+                    "payment_id": result.get("paymentId"),
+                    "status": PaymentStatus.COMPLETED.value,
+                    "created_at": now.isoformat()
+                }
+                await db.subscription_payments.insert_one(payment_record)
+                
+                logger.info(f"iyzico payment completed for company {company_id}: ₺{amount}")
+            
+            return {"status": "success", "message": "Payment completed successfully"}
+        else:
+            # Payment failed
+            await db.iyzico_sessions.update_one(
+                {"token": token},
+                {"$set": {
+                    "status": "failed",
+                    "error": result.get("errorMessage"),
+                    "failed_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            
+            logger.error(f"iyzico payment failed: {result}")
+            return {"status": "failed", "message": result.get("errorMessage", "Payment failed")}
+    
+    except Exception as e:
+        logger.error(f"iyzico callback error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.post("/payment/iyzico/webhook")
+async def iyzico_webhook(request: Request):
+    """Handle iyzico webhooks for subscription events"""
+    try:
+        payload = await request.body()
+        signature = request.headers.get("X-IYZ-SIGNATURE-V3", "")
+        
+        # Verify signature
+        if not iyzico_service.verify_webhook_signature(payload, signature):
+            logger.warning("Invalid iyzico webhook signature")
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        
+        body = json.loads(payload)
+        event_type = body.get("iyziEventType")
+        
+        logger.info(f"iyzico webhook received: {event_type}")
+        
+        if event_type == "SUBSCRIPTION_PAYMENT_SUCCESS":
+            # Handle recurring payment success
+            subscription_ref = body.get("subscriptionReferenceCode")
+            payment_id = body.get("paymentId")
+            
+            # Find company by subscription reference
+            company = await db.companies.find_one({"iyzico_subscription_ref": subscription_ref})
+            if company:
+                now = datetime.now(timezone.utc)
+                
+                # Extend subscription
+                current_end = datetime.fromisoformat(company.get("subscription_end", now.isoformat()).replace("Z", "+00:00"))
+                new_end = max(current_end, now) + timedelta(days=30)
+                
+                await db.companies.update_one(
+                    {"id": company["id"]},
+                    {"$set": {
+                        "subscription_end": new_end.isoformat(),
+                        "last_payment_date": now.isoformat(),
+                        "updated_at": now.isoformat()
+                    }}
+                )
+                
+                # Record payment
+                payment_record = {
+                    "id": str(uuid.uuid4()),
+                    "company_id": company["id"],
+                    "plan": company.get("subscription_plan", "starter"),
+                    "billing_cycle": "monthly",
+                    "amount": body.get("paidPrice", 0),
+                    "currency": "TRY",
+                    "payment_method": "iyzico_recurring",
+                    "payment_id": payment_id,
+                    "status": PaymentStatus.COMPLETED.value,
+                    "created_at": now.isoformat()
+                }
+                await db.subscription_payments.insert_one(payment_record)
+                
+                logger.info(f"Recurring payment processed for {company['name']}")
+        
+        elif event_type == "SUBSCRIPTION_CANCELLED":
+            subscription_ref = body.get("subscriptionReferenceCode")
+            company = await db.companies.find_one({"iyzico_subscription_ref": subscription_ref})
+            if company:
+                await db.companies.update_one(
+                    {"id": company["id"]},
+                    {"$set": {
+                        "status": CompanyStatus.SUSPENDED.value,
+                        "suspension_reason": "Subscription cancelled",
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                logger.info(f"Subscription cancelled for {company['name']}")
+        
+        return {"status": "received"}
+    
+    except Exception as e:
+        logger.error(f"iyzico webhook error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
 # ============== SUPPORT TICKET SYSTEM ==============
 
 class TicketStatus(str, Enum):
