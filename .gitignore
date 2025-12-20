@@ -2,10 +2,8 @@
 node_modules/
 __pycache__/
 *.pyc
-.venv/
-venv/
 
-# Environment files
+# Environment files (secrets!)
 .env
 backend/.env
 frontend/.env
@@ -16,16 +14,14 @@ frontend/.env
 
 # Logs & temp
 *.log
-/tmp/
 *.tmp
 *.tar.gz
 
 # OS
 .DS_Store
 
-# Test
-.coverage
-.pytest_cache/
-
-# Emergent
+# Emergent internal
 .emergent/
+
+# Source maps (optional - büyük dosyalar)
+*.map
