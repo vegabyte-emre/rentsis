@@ -104,9 +104,12 @@ class FranchiseAPITester:
 
     def test_franchise_application(self):
         """Test franchise application submission"""
+        # Use timestamp to ensure unique email
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         franchise_data = {
             "full_name": "Test Franchise Owner",
-            "email": "test.franchise@example.com",
+            "email": f"test.franchise.{timestamp}@example.com",
             "phone": "+90 555 123 4567",
             "city": "İstanbul",
             "district": "Kadıköy",
