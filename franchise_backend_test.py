@@ -61,8 +61,12 @@ class FranchiseAPITester:
                 response_data = response.json()
                 if success:
                     print(f"   Response: {json.dumps(response_data, indent=2)[:200]}...")
+                else:
+                    print(f"   Error Response: {json.dumps(response_data, indent=2)}")
             except:
                 response_data = response.text[:200] if response.text else "No response body"
+                if not success:
+                    print(f"   Error Text: {response_data}")
                 
             self.log_test(name, success, 
                          f"Expected {expected_status}, got {response.status_code}" if not success else "",
