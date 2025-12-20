@@ -135,8 +135,8 @@ networks:
 
 def get_full_company_stack_template(company_code: str, company_name: str, domain: str, port_offset: int) -> str:
     """
-    Generate Docker Compose for a complete company stack with Traefik SSL
-    ALL names use safe_code (no dashes/underscores) for consistency
+    Generate Docker Compose for a complete company stack with Traefik SSL.
+    Template files will be copied via Portainer API after stack creation.
     """
     safe_code = company_code.replace('-', '').replace('_', '')
     
@@ -171,14 +171,6 @@ services:
       - JWT_SECRET={safe_code}_jwt_secret_2024
       - COMPANY_CODE={company_code}
       - COMPANY_NAME={company_name}
-    volumes:
-      - rentacar_template_backend:/template:ro
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        cp -r /template/* /app/ 2>/dev/null || true
-        pip install motor python-jose passlib python-dotenv httpx bcrypt --quiet 2>/dev/null || true
-        exec uvicorn main:app --host 0.0.0.0 --port 80
     ports:
       - "{backend_port}:80"
     depends_on:
@@ -197,15 +189,6 @@ services:
     image: nginx:alpine
     container_name: {safe_code}_frontend
     restart: unless-stopped
-    volumes:
-      - rentacar_template_frontend:/template:ro
-      - {safe_code}_frontend_html:/usr/share/nginx/html
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        cp -r /template/* /usr/share/nginx/html/ 2>/dev/null || true
-        echo 'window.__RUNTIME_CONFIG__ = {{ API_URL: "https://api.{domain}" }};' > /usr/share/nginx/html/config.js
-        exec nginx -g 'daemon off;'
     ports:
       - "{frontend_port}:80"
     depends_on:
@@ -227,11 +210,6 @@ services:
 
 volumes:
   {safe_code}_mongo_data:
-  {safe_code}_frontend_html:
-  rentacar_template_frontend:
-    external: true
-  rentacar_template_backend:
-    external: true
 
 networks:
   {safe_code}_network:
