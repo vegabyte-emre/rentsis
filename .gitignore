@@ -1,48 +1,10 @@
-# Dependencies
 node_modules/
 __pycache__/
 *.pyc
-
-# Environment files (secrets!)
 .env
-backend/.env
-frontend/.env
-
-# IDE
+*.log
+.DS_Store
+*.tmp
+.emergent/
 .vscode/
 .idea/
-
-# Logs & temp
-*.log
-*.tmp
-*.tar.gz
-
-# OS
-.DS_Store
-
-# Emergent internal
-.emergent/
-
-# Source maps (optional - büyük dosyalar)
-*.map
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
-frontend/node_modules/.cache/default-development/0.pack
