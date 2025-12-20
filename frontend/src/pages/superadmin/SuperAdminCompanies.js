@@ -131,6 +131,52 @@ export function SuperAdminCompanies() {
     }
   };
 
+  const handleUpdateFromTemplate = async (companyId, companyName) => {
+    if (!window.confirm(`"${companyName}" firmasını template'den güncellemek istediğinize emin misiniz?\n\n⚠️ Bu işlem:\n- Frontend kodunu güncelleyecek\n- Backend kodunu güncelleyecek\n- Container'ları yeniden başlatacak\n\n✅ Korunacaklar:\n- Tüm müşteri verileri\n- Tüm araç verileri\n- Tüm rezervasyonlar\n- Tema ayarları\n- Admin kullanıcıları`)) return;
+    
+    try {
+      toast.loading("Template'den güncelleniyor (2-3 dakika sürebilir)...", { id: "update-template" });
+      const response = await axios.post(`${API_URL}/api/superadmin/companies/${companyId}/update-from-template`);
+      
+      if (response.data.success) {
+        toast.success(
+          <div>
+            <p className="font-medium">{response.data.message}</p>
+            <p className="text-xs mt-1">Veriler korundu, sadece kod güncellendi.</p>
+          </div>,
+          { id: "update-template", duration: 8000 }
+        );
+      } else {
+        toast.error("Güncelleme başarısız: " + response.data.error, { id: "update-template" });
+      }
+      fetchCompanies();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Güncelleme başarısız", { id: "update-template" });
+    }
+  };
+
+  const handleUpdateAllFromTemplate = async () => {
+    const activeCount = companies.filter(c => c.status === 'active' && c.portainer_stack_id).length;
+    
+    if (!window.confirm(`TÜM AKTİF FİRMALARI (${activeCount} adet) template'den güncellemek istediğinize emin misiniz?\n\n⚠️ Bu işlem:\n- Tüm firmaların Frontend kodunu güncelleyecek\n- Tüm firmaların Backend kodunu güncelleyecek\n- Tüm container'ları yeniden başlatacak\n\n✅ Korunacaklar:\n- Tüm veritabanı verileri\n- Müşteri, araç, rezervasyon bilgileri\n- Tema ayarları\n\nBu işlem uzun sürebilir!`)) return;
+    
+    try {
+      toast.loading(`${activeCount} firma güncelleniyor (bu işlem uzun sürebilir)...`, { id: "update-all" });
+      const response = await axios.post(`${API_URL}/api/superadmin/companies/update-all-from-template`);
+      
+      toast.success(
+        <div>
+          <p className="font-medium">{response.data.message}</p>
+          <p className="text-xs mt-1">Başarılı: {response.data.success_count}, Başarısız: {response.data.fail_count}</p>
+        </div>,
+        { id: "update-all", duration: 10000 }
+      );
+      fetchCompanies();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Toplu güncelleme başarısız", { id: "update-all" });
+    }
+  };
+
   const filteredCompanies = companies.filter(
     (c) =>
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
