@@ -173,6 +173,12 @@ export function ThemeStore() {
       return;
     }
 
+    // Check file size (max 5MB for slider)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Slider resmi 5MB'dan küçük olmalıdır");
+      return;
+    }
+
     setUploadingSlider(true);
     try {
       const formData = new FormData();
@@ -183,9 +189,11 @@ export function ThemeStore() {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (response.data.url) {
+      if (response.data.success) {
+        // Use data_uri for immediate display and persistent storage
+        const imageUrl = response.data.data_uri || `${API_URL}${response.data.url}`;
         const newSlide = {
-          url: response.data.url,
+          url: imageUrl,
           title: "",
           subtitle: ""
         };
@@ -194,7 +202,8 @@ export function ThemeStore() {
         toast.success("Slider resmi eklendi!");
       }
     } catch (error) {
-      toast.error("Resim yüklenirken hata oluştu");
+      const errorMsg = error.response?.data?.detail || "Resim yüklenirken hata oluştu";
+      toast.error(errorMsg);
     } finally {
       setUploadingSlider(false);
     }
