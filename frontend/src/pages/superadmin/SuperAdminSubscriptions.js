@@ -55,6 +55,7 @@ import {
   Receipt
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { IyzicoPayment } from './IyzicoPayment';
 
 const PLANS = {
   free: { name: 'Deneme', color: 'bg-gray-500', price: 0 },
@@ -88,6 +89,7 @@ export const SuperAdminSubscriptions = () => {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [isActivateOpen, setIsActivateOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isIyzicoOpen, setIsIyzicoOpen] = useState(false);
   const [activateForm, setActivateForm] = useState({ plan: 'starter', billingCycle: 'monthly' });
   const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'bank_transfer', reference: '', notes: '' });
 
