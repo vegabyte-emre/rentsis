@@ -338,13 +338,13 @@ services:
     environment:
       - MONGO_URL=mongodb://superadmin_mongodb:27017
       - DB_NAME=superadmin_db
-      - PORTAINER_URL=https://portainer:9443
+      - PORTAINER_URL=https://host.docker.internal:9443
       - PORTAINER_API_KEY=ptr_XwtYmxpR0KCkqMLsPLGMM4mHQS5Q75gupgBcCGqRUEY=
+      - SERVER_IP=72.61.158.147
     volumes:
       - superadmin_backend_app:/app
     networks:
       - superadmin_network
-      - portainer_network
     depends_on:
       - superadmin_mongodb
     extra_hosts:
