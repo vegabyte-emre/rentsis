@@ -956,6 +956,282 @@ class PortainerService:
             except Exception as e:
                 return {'error': str(e)}
 
+    async def get_container_id(self, container_name: str) -> str:
+        """Get container ID by name"""
+        containers_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/json?all=true"
+        containers = await self._request('GET', containers_endpoint)
+        
+        if isinstance(containers, list):
+            for c in containers:
+                names = c.get('Names', [])
+                for name in names:
+                    if container_name in name:
+                        return c.get('Id')
+        return None
+
+    async def copy_from_template(self, template_container: str, target_container: str, source_path: str, dest_path: str) -> Dict[str, Any]:
+        """
+        Copy files from template container to target container via Portainer API.
+        This enables template-based deployment without external APIs.
+        """
+        logger.info(f"[TEMPLATE-COPY] {template_container}:{source_path} -> {target_container}:{dest_path}")
+        
+        # Get container IDs
+        template_id = await self.get_container_id(template_container)
+        target_id = await self.get_container_id(target_container)
+        
+        if not template_id:
+            return {'error': f'Template container {template_container} not found'}
+        if not target_id:
+            return {'error': f'Target container {target_container} not found'}
+        
+        async with httpx.AsyncClient(verify=False, timeout=120.0) as client:
+            try:
+                # Step 1: Download from template container
+                download_url = f"{self.base_url}/api/endpoints/{self.endpoint_id}/docker/containers/{template_id}/archive?path={source_path}"
+                download_resp = await client.get(download_url, headers=self.headers)
+                
+                if download_resp.status_code != 200:
+                    return {'error': f'Failed to download from template: {download_resp.status_code}'}
+                
+                tar_data = download_resp.content
+                logger.info(f"[TEMPLATE-COPY] Downloaded {len(tar_data)} bytes from template")
+                
+                # Step 2: Upload to target container
+                upload_url = f"{self.base_url}/api/endpoints/{self.endpoint_id}/docker/containers/{target_id}/archive?path={dest_path}"
+                upload_headers = {**self.headers, 'Content-Type': 'application/x-tar'}
+                upload_resp = await client.put(upload_url, headers=upload_headers, content=tar_data)
+                
+                if upload_resp.status_code != 200:
+                    return {'error': f'Failed to upload to target: {upload_resp.status_code} - {upload_resp.text}'}
+                
+                logger.info(f"[TEMPLATE-COPY] Successfully copied to {target_container}")
+                return {'success': True, 'bytes_copied': len(tar_data)}
+                
+            except Exception as e:
+                logger.error(f"[TEMPLATE-COPY] Error: {str(e)}")
+                return {'error': str(e)}
+
+    async def create_config_js(self, container_name: str, api_url: str) -> Dict[str, Any]:
+        """
+        Create config.js file with runtime API URL in frontend container
+        """
+        import tarfile
+        import io as std_io
+        
+        config_content = f'window.__RUNTIME_CONFIG__ = {{ API_URL: "{api_url}" }};'
+        
+        tar_buffer = std_io.BytesIO()
+        with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
+            config_info = tarfile.TarInfo(name="config.js")
+            config_bytes = config_content.encode('utf-8')
+            config_info.size = len(config_bytes)
+            tar.addfile(config_info, std_io.BytesIO(config_bytes))
+        
+        tar_data = tar_buffer.getvalue()
+        
+        result = await self.upload_to_container(
+            container_name=container_name,
+            tar_data=tar_data,
+            dest_path="/usr/share/nginx/html"
+        )
+        
+        if result.get('success'):
+            logger.info(f"[CONFIG] Created config.js for {container_name} with API_URL={api_url}")
+        
+        return result
+
+    async def install_backend_dependencies(self, container_name: str) -> Dict[str, Any]:
+        """
+        Install Python dependencies in backend container via exec
+        """
+        logger.info(f"[DEPS] Installing dependencies in {container_name}")
+        
+        container_id = await self.get_container_id(container_name)
+        if not container_id:
+            return {'error': f'Container {container_name} not found'}
+        
+        # Wait for container to be running
+        import asyncio
+        for _ in range(10):
+            containers = await self._request('GET', f"endpoints/{self.endpoint_id}/docker/containers/json")
+            for c in containers:
+                if c.get('Id') == container_id:
+                    if c.get('State') == 'running':
+                        break
+            await asyncio.sleep(2)
+        
+        # Create and run exec
+        exec_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/{container_id}/exec"
+        exec_payload = {
+            'Cmd': ['pip', 'install', 'motor', 'python-jose', 'passlib', 'python-dotenv', 'httpx', 'bcrypt', '--quiet'],
+            'AttachStdout': True,
+            'AttachStderr': True
+        }
+        
+        result = await self._request('POST', exec_endpoint, data=exec_payload)
+        
+        if 'Id' in result:
+            exec_id = result['Id']
+            async with httpx.AsyncClient(verify=False, timeout=180.0) as client:
+                start_url = f"{self.base_url}/api/endpoints/{self.endpoint_id}/docker/exec/{exec_id}/start"
+                await client.post(start_url, headers=self.headers, json={'Detach': False})
+            
+            logger.info(f"[DEPS] Dependencies installed in {container_name}")
+            return {'success': True}
+        
+        return {'error': 'Failed to create exec', 'details': result}
+
+    async def full_tenant_deployment(self, company_code: str, domain: str, admin_email: str, admin_password: str, mongo_port: int) -> Dict[str, Any]:
+        """
+        Complete tenant deployment after stack creation:
+        1. Copy frontend from template
+        2. Copy backend from template
+        3. Install backend dependencies
+        4. Create config.js with API URL
+        5. Setup database with admin user
+        6. Restart containers
+        
+        All operations via Portainer API - no external dependencies
+        """
+        safe_code = company_code.replace('-', '').replace('_', '')
+        frontend_container = f"{safe_code}_frontend"
+        backend_container = f"{safe_code}_backend"
+        db_name = f"{safe_code}_db"
+        api_url = f"https://api.{domain}"
+        
+        results = {
+            'frontend_copy': None,
+            'backend_copy': None,
+            'deps_install': None,
+            'config_js': None,
+            'nginx_config': None,
+            'db_setup': None
+        }
+        
+        logger.info(f"[FULL-DEPLOY] Starting deployment for {company_code} ({domain})")
+        
+        # Wait for containers to start
+        import asyncio
+        await asyncio.sleep(10)
+        
+        try:
+            # Step 1: Copy frontend from template
+            logger.info(f"[FULL-DEPLOY] Step 1: Copying frontend...")
+            results['frontend_copy'] = await self.copy_from_template(
+                template_container="rentacar_template_frontend",
+                target_container=frontend_container,
+                source_path="/usr/share/nginx/html",
+                dest_path="/usr/share/nginx"
+            )
+            
+            # Step 2: Copy backend from template
+            logger.info(f"[FULL-DEPLOY] Step 2: Copying backend...")
+            results['backend_copy'] = await self.copy_from_template(
+                template_container="rentacar_template_backend",
+                target_container=backend_container,
+                source_path="/app",
+                dest_path="/"
+            )
+            
+            # Step 3: Install backend dependencies
+            logger.info(f"[FULL-DEPLOY] Step 3: Installing dependencies...")
+            results['deps_install'] = await self.install_backend_dependencies(backend_container)
+            
+            # Step 4: Create config.js
+            logger.info(f"[FULL-DEPLOY] Step 4: Creating config.js...")
+            results['config_js'] = await self.create_config_js(frontend_container, api_url)
+            
+            # Step 5: Configure Nginx for SPA
+            logger.info(f"[FULL-DEPLOY] Step 5: Configuring Nginx...")
+            results['nginx_config'] = await self.configure_nginx_spa(frontend_container)
+            
+            # Step 6: Setup database - this needs MongoDB connection
+            logger.info(f"[FULL-DEPLOY] Step 6: Setting up database...")
+            results['db_setup'] = await self.setup_tenant_database(
+                mongo_port=mongo_port,
+                db_name=db_name,
+                admin_email=admin_email,
+                admin_password=admin_password
+            )
+            
+            # Step 7: Restart containers
+            logger.info(f"[FULL-DEPLOY] Step 7: Restarting containers...")
+            await self.restart_container(backend_container)
+            await asyncio.sleep(3)
+            await self.restart_container(frontend_container)
+            
+            logger.info(f"[FULL-DEPLOY] Deployment complete for {company_code}")
+            
+            return {
+                'success': True,
+                'message': f'Tenant {company_code} fully deployed',
+                'results': results,
+                'urls': {
+                    'website': f'https://{domain}',
+                    'panel': f'https://panel.{domain}',
+                    'api': api_url
+                },
+                'credentials': {
+                    'email': admin_email,
+                    'password': admin_password
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"[FULL-DEPLOY] Error: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'results': results
+            }
+
+    async def setup_tenant_database(self, mongo_port: int, db_name: str, admin_email: str, admin_password: str) -> Dict[str, Any]:
+        """
+        Setup tenant MongoDB with admin user.
+        Connects to tenant's MongoDB via exposed port.
+        """
+        from motor.motor_asyncio import AsyncIOMotorClient
+        from passlib.context import CryptContext
+        import uuid
+        from datetime import datetime, timezone
+        
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        try:
+            # Connect to tenant MongoDB
+            mongo_url = f"mongodb://{SERVER_IP}:{mongo_port}"
+            client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=30000)
+            tenant_db = client[db_name]
+            
+            # Check if admin already exists
+            existing = await tenant_db.users.find_one({"email": admin_email})
+            
+            if not existing:
+                admin_user = {
+                    "id": str(uuid.uuid4()),
+                    "email": admin_email,
+                    "password_hash": pwd_context.hash(admin_password),
+                    "full_name": "Firma Admin",
+                    "role": "firma_admin",
+                    "company_id": None,
+                    "is_active": True,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await tenant_db.users.insert_one(admin_user)
+                logger.info(f"[DB-SETUP] Admin user created: {admin_email}")
+                result = {'success': True, 'admin_email': admin_email, 'created': True}
+            else:
+                logger.info(f"[DB-SETUP] Admin user already exists: {admin_email}")
+                result = {'success': True, 'admin_email': admin_email, 'created': False, 'already_exists': True}
+            
+            client.close()
+            return result
+            
+        except Exception as e:
+            logger.error(f"[DB-SETUP] Error: {str(e)}")
+            return {'success': False, 'error': str(e)}
+
 
 # Singleton instance
 portainer_service = PortainerService()
