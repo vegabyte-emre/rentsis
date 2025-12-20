@@ -3408,6 +3408,324 @@ async def assign_ticket(
     
     return {"success": True, "message": "Ticket atandı"}
 
+# ============== FRANCHISE MANAGEMENT SYSTEM ==============
+
+class FranchiseStatus(str, Enum):
+    APPLICATION = "application"      # Başvuru yapıldı
+    UNDER_REVIEW = "under_review"    # İnceleniyor
+    APPROVED = "approved"            # Onaylandı, sözleşme bekliyor
+    ACTIVE = "active"                # Aktif franchise
+    SUSPENDED = "suspended"          # Askıya alındı
+    TERMINATED = "terminated"        # Sonlandırıldı
+
+class FranchiseApplicationCreate(BaseModel):
+    # Kişisel Bilgiler
+    full_name: str
+    email: str
+    phone: str
+    tc_no: Optional[str] = None
+    
+    # Firma Bilgileri
+    company_name: Optional[str] = None
+    tax_no: Optional[str] = None
+    
+    # Lokasyon
+    city: str
+    district: str
+    address: Optional[str] = None
+    
+    # Deneyim
+    experience_years: int = 0
+    current_vehicle_count: int = 0
+    has_office: bool = False
+    investment_budget: Optional[str] = None
+    
+    # Ek Bilgiler
+    how_did_you_hear: Optional[str] = None
+    message: Optional[str] = None
+
+# Public: Submit franchise application
+@api_router.post("/franchise/apply")
+async def apply_franchise(application: FranchiseApplicationCreate):
+    """Public: Submit a franchise application"""
+    
+    # Check if email already applied
+    existing = await db.franchise_applications.find_one({"email": application.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu e-posta ile daha önce başvuru yapılmış")
+    
+    now = datetime.now(timezone.utc)
+    app_id = str(uuid.uuid4())
+    app_number = f"FRN-{now.strftime('%Y%m%d')}-{app_id[:6].upper()}"
+    
+    franchise_doc = {
+        "id": app_id,
+        "application_number": app_number,
+        "status": FranchiseStatus.APPLICATION.value,
+        
+        # Kişisel
+        "full_name": application.full_name,
+        "email": application.email,
+        "phone": application.phone,
+        "tc_no": application.tc_no,
+        
+        # Firma
+        "company_name": application.company_name,
+        "tax_no": application.tax_no,
+        
+        # Lokasyon
+        "city": application.city,
+        "district": application.district,
+        "address": application.address,
+        
+        # Deneyim
+        "experience_years": application.experience_years,
+        "current_vehicle_count": application.current_vehicle_count,
+        "has_office": application.has_office,
+        "investment_budget": application.investment_budget,
+        
+        # Ek
+        "how_did_you_hear": application.how_did_you_hear,
+        "message": application.message,
+        
+        # Meta
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+        "notes": [],
+        "documents": [],
+        "assigned_to": None
+    }
+    
+    await db.franchise_applications.insert_one(franchise_doc)
+    
+    logger.info(f"Franchise application received: {app_number} - {application.full_name}")
+    
+    return {
+        "success": True,
+        "application_number": app_number,
+        "message": "Franchise başvurunuz alındı. En kısa sürede sizinle iletişime geçeceğiz."
+    }
+
+# Public: Check application status
+@api_router.get("/franchise/status/{application_number}")
+async def check_franchise_status(application_number: str, email: str):
+    """Public: Check franchise application status"""
+    application = await db.franchise_applications.find_one(
+        {"application_number": application_number, "email": email},
+        {"_id": 0, "application_number": 1, "status": 1, "full_name": 1, "created_at": 1}
+    )
+    
+    if not application:
+        raise HTTPException(status_code=404, detail="Başvuru bulunamadı")
+    
+    return application
+
+# SuperAdmin: Get all franchise applications
+@api_router.get("/superadmin/franchises")
+async def get_all_franchises(
+    user: dict = Depends(get_current_user),
+    status: Optional[str] = None,
+    limit: int = 100
+):
+    """SuperAdmin: Get all franchise applications"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view franchises")
+    
+    query = {}
+    if status:
+        query["status"] = status
+    
+    franchises = await db.franchise_applications.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    # Stats
+    stats = {
+        "total": await db.franchise_applications.count_documents({}),
+        "application": await db.franchise_applications.count_documents({"status": "application"}),
+        "under_review": await db.franchise_applications.count_documents({"status": "under_review"}),
+        "approved": await db.franchise_applications.count_documents({"status": "approved"}),
+        "active": await db.franchise_applications.count_documents({"status": "active"}),
+        "suspended": await db.franchise_applications.count_documents({"status": "suspended"})
+    }
+    
+    return {"franchises": franchises, "stats": stats}
+
+# SuperAdmin: Get single franchise
+@api_router.get("/superadmin/franchises/{franchise_id}")
+async def get_franchise(franchise_id: str, user: dict = Depends(get_current_user)):
+    """SuperAdmin: Get franchise details"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view franchise details")
+    
+    franchise = await db.franchise_applications.find_one({"id": franchise_id}, {"_id": 0})
+    if not franchise:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+    
+    return franchise
+
+# SuperAdmin: Update franchise status
+@api_router.patch("/superadmin/franchises/{franchise_id}/status")
+async def update_franchise_status(
+    franchise_id: str,
+    status: str,
+    user: dict = Depends(get_current_user)
+):
+    """SuperAdmin: Update franchise status"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can update franchise status")
+    
+    franchise = await db.franchise_applications.find_one({"id": franchise_id})
+    if not franchise:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+    
+    now = datetime.now(timezone.utc)
+    update_data = {
+        "status": status,
+        "updated_at": now.isoformat()
+    }
+    
+    # Add status change to notes
+    note = {
+        "id": str(uuid.uuid4()),
+        "type": "status_change",
+        "old_status": franchise["status"],
+        "new_status": status,
+        "by": user["email"],
+        "created_at": now.isoformat()
+    }
+    
+    await db.franchise_applications.update_one(
+        {"id": franchise_id},
+        {
+            "$set": update_data,
+            "$push": {"notes": note}
+        }
+    )
+    
+    logger.info(f"Franchise {franchise['application_number']} status changed to {status}")
+    
+    return {"success": True, "message": f"Durum güncellendi: {status}"}
+
+# SuperAdmin: Add note to franchise
+class FranchiseNote(BaseModel):
+    content: str
+
+@api_router.post("/superadmin/franchises/{franchise_id}/notes")
+async def add_franchise_note(
+    franchise_id: str,
+    note: FranchiseNote,
+    user: dict = Depends(get_current_user)
+):
+    """SuperAdmin: Add note to franchise application"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can add notes")
+    
+    franchise = await db.franchise_applications.find_one({"id": franchise_id})
+    if not franchise:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+    
+    now = datetime.now(timezone.utc)
+    note_doc = {
+        "id": str(uuid.uuid4()),
+        "type": "note",
+        "content": note.content,
+        "by": user["email"],
+        "created_at": now.isoformat()
+    }
+    
+    await db.franchise_applications.update_one(
+        {"id": franchise_id},
+        {
+            "$push": {"notes": note_doc},
+            "$set": {"updated_at": now.isoformat()}
+        }
+    )
+    
+    return {"success": True, "message": "Not eklendi"}
+
+# SuperAdmin: Convert franchise to company
+@api_router.post("/superadmin/franchises/{franchise_id}/convert-to-company")
+async def convert_franchise_to_company(
+    franchise_id: str,
+    domain: str,
+    admin_password: str,
+    user: dict = Depends(get_current_user)
+):
+    """SuperAdmin: Convert approved franchise to a company"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can convert franchises")
+    
+    franchise = await db.franchise_applications.find_one({"id": franchise_id})
+    if not franchise:
+        raise HTTPException(status_code=404, detail="Franchise not found")
+    
+    if franchise["status"] not in ["approved", "active"]:
+        raise HTTPException(status_code=400, detail="Franchise must be approved first")
+    
+    # Create company from franchise
+    company_name = franchise.get("company_name") or f"{franchise['full_name']} Rent A Car"
+    company_code = company_name.lower().replace(" ", "_").replace("-", "_")[:20]
+    
+    # Check if company exists
+    existing = await db.companies.find_one({"code": company_code})
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu isimde firma zaten mevcut")
+    
+    now = datetime.now(timezone.utc)
+    company_id = str(uuid.uuid4())
+    
+    company_doc = {
+        "id": company_id,
+        "name": company_name,
+        "code": company_code,
+        "domain": domain,
+        "status": CompanyStatus.PENDING.value,
+        "subscription_plan": SubscriptionPlan.PROFESSIONAL.value,
+        "billing_cycle": "monthly",
+        "is_franchise": True,
+        "franchise_id": franchise_id,
+        
+        # Contact
+        "admin_email": franchise["email"],
+        "admin_phone": franchise["phone"],
+        "admin_name": franchise["full_name"],
+        "admin_password": admin_password,
+        
+        # Address
+        "city": franchise.get("city"),
+        "district": franchise.get("district"),
+        "address": franchise.get("address"),
+        
+        # Meta
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+        "source": "franchise"
+    }
+    
+    await db.companies.insert_one(company_doc)
+    
+    # Update franchise status
+    await db.franchise_applications.update_one(
+        {"id": franchise_id},
+        {"$set": {
+            "status": FranchiseStatus.ACTIVE.value,
+            "company_id": company_id,
+            "activated_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        }}
+    )
+    
+    logger.info(f"Franchise {franchise['application_number']} converted to company {company_name}")
+    
+    return {
+        "success": True,
+        "company_id": company_id,
+        "company_name": company_name,
+        "message": "Franchise başarıyla firmaya dönüştürüldü. Şimdi deploy edebilirsiniz."
+    }
+
 app.include_router(api_router)
 
 app.add_middleware(
