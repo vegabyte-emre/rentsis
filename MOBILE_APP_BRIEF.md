@@ -12,12 +12,12 @@
 
 **Production API URL:**  
 ```
-https://tenantfleet.preview.emergentagent.com/api
+https://fleetease-dash.preview.emergentagent.com/api
 ```
 
 **API Dokümantasyonu:**  
 ```
-https://tenantfleet.preview.emergentagent.com/docs
+https://fleetease-dash.preview.emergentagent.com/docs
 ```
 
 ---
@@ -307,9 +307,9 @@ superadmin | firma_admin | operasyon | muhasebe | personel | musteri
 
 ## 🔗 Mevcut Web Uygulaması
 
-- **Müşteri Sitesi:** https://tenantfleet.preview.emergentagent.com/
-- **Admin Panel:** https://tenantfleet.preview.emergentagent.com/login
-- **API Docs:** https://tenantfleet.preview.emergentagent.com/docs
+- **Müşteri Sitesi:** https://fleetease-dash.preview.emergentagent.com/
+- **Admin Panel:** https://fleetease-dash.preview.emergentagent.com/login
+- **API Docs:** https://fleetease-dash.preview.emergentagent.com/docs
 
 ---
 

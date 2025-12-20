@@ -22,17 +22,17 @@
 
 **Production API URL:**  
 ```
-https://tenantfleet.preview.emergentagent.com/api
+https://fleetease-dash.preview.emergentagent.com/api
 ```
 
 **API Dokümantasyonu (Swagger):**  
 ```
-https://tenantfleet.preview.emergentagent.com/docs
+https://fleetease-dash.preview.emergentagent.com/docs
 ```
 
 **Mevcut Web Sitesi:**  
 ```
-https://tenantfleet.preview.emergentagent.com/
+https://fleetease-dash.preview.emergentagent.com/
 ```
 
 ---
@@ -887,8 +887,8 @@ GET /api/public/locations/nearest
 ## 📞 İLETİŞİM & DESTEK
 
 **Backend API:** Aktif ve çalışıyor  
-**API Docs:** https://tenantfleet.preview.emergentagent.com/docs  
-**Web App:** https://tenantfleet.preview.emergentagent.com/
+**API Docs:** https://fleetease-dash.preview.emergentagent.com/docs  
+**Web App:** https://fleetease-dash.preview.emergentagent.com/
 
 ---
 
