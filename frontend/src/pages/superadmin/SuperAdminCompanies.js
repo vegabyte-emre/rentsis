@@ -396,13 +396,22 @@ export function SuperAdminCompanies() {
                                 Portainer'a Deploy Et
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem
-                                className="text-orange-400 hover:bg-slate-700 cursor-pointer"
-                                onClick={() => handleDeprovision(company.id, company.name)}
-                              >
-                                <Server className="h-4 w-4 mr-2" />
-                                Stack'i Kaldır
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuItem
+                                  className="text-green-400 hover:bg-slate-700 cursor-pointer"
+                                  onClick={() => handleDeployCode(company.id, company.name)}
+                                >
+                                  <Rocket className="h-4 w-4 mr-2" />
+                                  Kod Yükle (Frontend/Backend)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-orange-400 hover:bg-slate-700 cursor-pointer"
+                                  onClick={() => handleDeprovision(company.id, company.name)}
+                                >
+                                  <Server className="h-4 w-4 mr-2" />
+                                  Stack'i Kaldır
+                                </DropdownMenuItem>
+                              </>
                             )}
                             <DropdownMenuSeparator className="bg-slate-700" />
                             <DropdownMenuItem
