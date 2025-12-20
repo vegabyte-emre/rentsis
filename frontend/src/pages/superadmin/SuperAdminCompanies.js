@@ -38,7 +38,9 @@ import {
   Globe,
   ExternalLink,
   Server,
-  XCircle
+  XCircle,
+  Download,
+  RefreshCcw
 } from "lucide-react";
 import { toast } from "sonner";
 
