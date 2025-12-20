@@ -89,7 +89,7 @@ export const FranchiseSection = () => {
         current_vehicle_count: parseInt(formData.current_vehicle_count) || 0
       };
       
-      const response = await axios.post(`${API_URL}/api/public/franchise/apply`, payload);
+      const response = await axios.post(`${API_URL}/api/franchise/apply`, payload);
       setApplicationNumber(response.data.application_number);
       setIsSuccess(true);
     } catch (error) {
