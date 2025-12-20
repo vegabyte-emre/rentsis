@@ -1,8 +1,8 @@
-// Runtime config - config.js dosyasından veya env'den alınır
+// Runtime config - config.js dosyasından alınır
 const getApiUrl = () => {
-  // Önce runtime config'e bak (Portainer deployment için)
-  if (typeof window !== 'undefined' && window.__RUNTIME_CONFIG__?.API_URL) {
-    return window.__RUNTIME_CONFIG__.API_URL;
+  // Runtime config'den al (window.REACT_APP_BACKEND_URL)
+  if (typeof window !== 'undefined' && window.REACT_APP_BACKEND_URL) {
+    return window.REACT_APP_BACKEND_URL;
   }
   // Fallback: build-time env variable
   return process.env.REACT_APP_BACKEND_URL || '';
