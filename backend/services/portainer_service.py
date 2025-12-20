@@ -708,6 +708,52 @@ class PortainerService:
             logger.error(f"SuperAdmin stack creation failed: {result}")
             return {'success': False, 'error': result.get('error', 'Unknown error')}
 
+    async def create_template_stack(self) -> Dict[str, Any]:
+        """
+        Create template stack with shared volumes for frontend and backend code.
+        All tenant stacks will mount these volumes read-only.
+        """
+        stack_name = "rentacar_template"
+        compose_content = get_template_stack_compose()
+        
+        # Check if stack already exists
+        existing_stacks = await self.get_stacks()
+        for stack in existing_stacks:
+            if isinstance(stack, dict) and stack.get("Name") == stack_name:
+                return {
+                    'success': True,
+                    'already_exists': True,
+                    'stack_id': stack.get('Id'),
+                    'stack_name': stack_name,
+                    'message': 'Template stack already exists'
+                }
+        
+        endpoint = f"stacks/create/standalone/string?endpointId={self.endpoint_id}"
+        
+        payload = {
+            'name': stack_name,
+            'stackFileContent': compose_content,
+            'env': []
+        }
+        
+        result = await self._request('POST', endpoint, data=payload)
+        
+        if 'error' not in result:
+            logger.info(f"Template stack created successfully")
+            return {
+                'success': True,
+                'stack_id': result.get('Id'),
+                'stack_name': stack_name,
+                'message': 'Template stack created. Now upload frontend build and backend code to the template containers.',
+                'containers': {
+                    'frontend': 'rentacar_template_frontend',
+                    'backend': 'rentacar_template_backend'
+                }
+            }
+        else:
+            logger.error(f"Template stack creation failed: {result}")
+            return {'success': False, 'error': result.get('error', 'Unknown error')}
+
 
     async def exec_in_container(self, container_name: str, command: str) -> Dict[str, Any]:
         """
