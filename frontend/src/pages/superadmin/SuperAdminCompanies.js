@@ -384,6 +384,13 @@ export function SuperAdminCompanies() {
                             {company.portainer_stack_id && (
                               <>
                                 <DropdownMenuItem
+                                  className="text-cyan-400 hover:bg-slate-700 cursor-pointer"
+                                  onClick={() => handleUpdateFromTemplate(company.id, company.name)}
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Template&apos;den Güncelle
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
                                   className="text-blue-400 hover:bg-slate-700 cursor-pointer"
                                   onClick={() => {
                                     const frontendUrl = company.urls?.frontend || `http://72.61.158.147:${company.ports?.frontend}`;
