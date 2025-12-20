@@ -29,6 +29,7 @@ import { NewCompany } from "./pages/superadmin/NewCompany";
 import { SuperAdminSettings } from "./pages/superadmin/SuperAdminSettings";
 import { SuperAdminSubscriptions } from "./pages/superadmin/SuperAdminSubscriptions";
 import { SuperAdminTickets } from "./pages/superadmin/SuperAdminTickets";
+import { SuperAdminFranchises } from "./pages/superadmin/SuperAdminFranchises";
 import { SuperAdminLayout } from "./components/layout/SuperAdminLayout";
 
 // Public Pages
@@ -156,6 +157,7 @@ function AppRoutes() {
         <Route path="/superadmin/companies/new" element={<NewCompany />} />
         <Route path="/superadmin/subscriptions" element={<SuperAdminSubscriptions />} />
         <Route path="/superadmin/tickets" element={<SuperAdminTickets />} />
+        <Route path="/superadmin/franchises" element={<SuperAdminFranchises />} />
         <Route path="/superadmin/settings" element={<SuperAdminSettings />} />
       </Route>
 

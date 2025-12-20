@@ -15,13 +15,15 @@ import {
   X,
   Bell,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  Store
 } from "lucide-react";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/superadmin/dashboard" },
   { icon: Building2, label: "Firmalar", path: "/superadmin/companies" },
   { icon: CreditCard, label: "Abonelikler", path: "/superadmin/subscriptions" },
+  { icon: Store, label: "Bayilikler", path: "/superadmin/franchises" },
   { icon: MessageSquare, label: "Destek", path: "/superadmin/tickets" },
   { icon: Settings, label: "Ayarlar", path: "/superadmin/settings" }
 ];
