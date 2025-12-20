@@ -2672,6 +2672,71 @@ async def delete_image(image_id: str, user: dict = Depends(get_current_user)):
     
     return {"success": True, "message": "Image deleted successfully"}
 
+# ============== DEMO REQUEST ==============
+class DemoRequestCreate(BaseModel):
+    name: str
+    email: str
+    phone: str
+    company: str = ""
+    vehicles: str = ""
+    message: str = ""
+
+@api_router.post("/demo-requests")
+async def create_demo_request(request: DemoRequestCreate):
+    """
+    Public: Submit a demo request from landing page
+    Stores request and creates a company entry with 'pending' status
+    """
+    demo_request = {
+        "id": str(uuid.uuid4()),
+        "name": request.name,
+        "email": request.email,
+        "phone": request.phone,
+        "company": request.company,
+        "vehicles": request.vehicles,
+        "message": request.message,
+        "status": "pending",  # pending, contacted, converted, rejected
+        "source": "landing_page",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.demo_requests.insert_one(demo_request)
+    
+    # Also create a company entry with pending_approval status
+    if request.company:
+        company_code = request.company.lower().replace(" ", "_").replace("-", "_")[:20]
+        existing = await db.companies.find_one({"code": company_code})
+        
+        if not existing:
+            company_doc = {
+                "id": str(uuid.uuid4()),
+                "name": request.company,
+                "code": company_code,
+                "status": CompanyStatus.PENDING_APPROVAL.value,
+                "admin_email": request.email,
+                "admin_phone": request.phone,
+                "admin_name": request.name,
+                "vehicle_count": request.vehicles,
+                "notes": request.message,
+                "source": "demo_request",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.companies.insert_one(company_doc)
+            logger.info(f"New company created from demo request: {request.company}")
+    
+    logger.info(f"Demo request received: {request.email}")
+    
+    return {"success": True, "message": "Demo request submitted successfully"}
+
+@api_router.get("/superadmin/demo-requests")
+async def get_demo_requests(user: dict = Depends(get_current_user)):
+    """SuperAdmin: Get all demo requests"""
+    if user["role"] != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only SuperAdmin can view demo requests")
+    
+    requests = await db.demo_requests.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return requests
+
 app.include_router(api_router)
 
 app.add_middleware(
