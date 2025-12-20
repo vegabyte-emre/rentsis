@@ -5,11 +5,7 @@ __pycache__/
 .venv/
 venv/
 
-# Build outputs
-*.egg-info/
-dist/
-
-# Environment files (contains secrets!)
+# Environment files
 .env
 backend/.env
 frontend/.env
@@ -17,36 +13,19 @@ frontend/.env
 # IDE
 .vscode/
 .idea/
-*.swp
 
-# Logs
+# Logs & temp
 *.log
+/tmp/
+*.tmp
+*.tar.gz
 
 # OS
 .DS_Store
-Thumbs.db
 
 # Test
 .coverage
 .pytest_cache/
 
-# Temp
-/tmp/
-*.tmp
-frontend/node_modules/.cache/default-development/7.pack
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
+# Emergent
+.emergent/
