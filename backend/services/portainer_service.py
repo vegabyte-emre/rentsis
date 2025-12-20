@@ -12,7 +12,8 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 # Portainer Configuration
-PORTAINER_URL = os.environ.get('PORTAINER_URL', 'https://72.61.158.147:9443')
+# Internal Docker network IP preferred, fallback to external
+PORTAINER_URL = os.environ.get('PORTAINER_URL', 'https://172.19.0.5:9443')
 PORTAINER_API_KEY = os.environ.get('PORTAINER_API_KEY', 'ptr_XwtYmxpR0KCkqMLsPLGMM4mHQS5Q75gupgBcCGqRUEY=')
 PORTAINER_ENDPOINT_ID = int(os.environ.get('PORTAINER_ENDPOINT_ID', '3'))
 SERVER_IP = os.environ.get('SERVER_IP', '72.61.158.147')
