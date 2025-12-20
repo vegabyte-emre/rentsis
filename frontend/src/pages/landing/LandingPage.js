@@ -19,6 +19,7 @@ const LandingContent = () => {
       <FeaturesSection />
       <PricingSection />
       <TestimonialsSection />
+      <FranchiseSection />
       <FAQSection />
       <ContactSection />
       <FooterSection />
