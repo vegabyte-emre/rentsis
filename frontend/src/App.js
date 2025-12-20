@@ -155,6 +155,7 @@ function AppRoutes() {
         <Route path="/superadmin/companies" element={<SuperAdminCompanies />} />
         <Route path="/superadmin/companies/new" element={<NewCompany />} />
         <Route path="/superadmin/subscriptions" element={<SuperAdminSubscriptions />} />
+        <Route path="/superadmin/tickets" element={<SuperAdminTickets />} />
         <Route path="/superadmin/settings" element={<SuperAdminSettings />} />
       </Route>
 
