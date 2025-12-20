@@ -1,0 +1,38 @@
+{
+  "timestamp": "2025-12-20T14:18:22.881944",
+  "total_tests": 2,
+  "passed_tests": 1,
+  "failed_tests": 1,
+  "success_rate": "50.0%",
+  "test_results": [
+    {
+      "test_name": "SuperAdmin Login",
+      "success": true,
+      "details": "",
+      "response_data": {
+        "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiZTM1NzM1Ni1hMDY4LTQyNjAtYWUxMC1iZDI5M2U4ZmNkNjIiLCJyb2xlIjoic3VwZXJhZG1pbiIsImV4cCI6MTc2NjMyNjcwMn0.V1j0objl55Y2Iy9P78fUV14OJeXVaGkA_rL6DsGf4Rw",
+        "token_type": "bearer",
+        "user": {
+          "id": "be357356-a068-4260-ae10-bd293e8fcd62",
+          "email": "superadmin@example.com",
+          "full_name": "Super Admin",
+          "role": "superadmin",
+          "company_id": null,
+          "phone": null,
+          "is_active": true,
+          "created_at": "2025-12-20T14:15:00.857151Z"
+        }
+      }
+    },
+    {
+      "test_name": "Franchise Application Submission",
+      "success": false,
+      "details": "Expected 201, got 200",
+      "response_data": {
+        "success": true,
+        "application_number": "FRN-20251220-91725D",
+        "message": "Franchise ba\u015fvurunuz al\u0131nd\u0131. En k\u0131sa s\u00fcrede sizinle ileti\u015fime ge\u00e7ece\u011fiz."
+      }
+    }
+  ]
+}
