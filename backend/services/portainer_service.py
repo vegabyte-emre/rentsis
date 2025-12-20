@@ -1047,10 +1047,10 @@ class PortainerService:
                         break
             await asyncio.sleep(2)
         
-        # Create and run exec
+        # Create and run exec - bcrypt version pinned to avoid passlib compatibility issues
         exec_endpoint = f"endpoints/{self.endpoint_id}/docker/containers/{container_id}/exec"
         exec_payload = {
-            'Cmd': ['pip', 'install', 'motor', 'python-jose', 'passlib', 'python-dotenv', 'httpx', 'bcrypt', '--quiet'],
+            'Cmd': ['pip', 'install', 'motor', 'python-jose', 'passlib[bcrypt]', 'python-dotenv', 'httpx', 'bcrypt==4.0.1', '--quiet'],
             'AttachStdout': True,
             'AttachStderr': True
         }
