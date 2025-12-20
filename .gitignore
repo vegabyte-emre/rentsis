@@ -25,3 +25,7 @@ frontend/.env
 
 # Source maps (optional - büyük dosyalar)
 *.map
+-e 
+# Environment files
+*.env
+*.env.*
