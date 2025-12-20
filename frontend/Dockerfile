@@ -3,12 +3,20 @@ FROM node:18-alpine as build
 
 WORKDIR /app
 
+# Copy package files
+COPY package.json ./
+COPY yarn.lock* package-lock.json* ./
+
 # Install dependencies
-COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile
+RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+    elif [ -f package-lock.json ]; then npm ci; \
+    else yarn install; fi
+
+# Copy source code
+COPY public ./public
+COPY src ./src
 
 # Build app
-COPY . .
 RUN yarn build
 
 # Production stage
