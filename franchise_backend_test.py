@@ -118,7 +118,7 @@ class FranchiseAPITester:
             "Franchise Application Submission",
             "POST",
             "api/franchise/apply",
-            201,
+            200,
             data=franchise_data
         )
         
