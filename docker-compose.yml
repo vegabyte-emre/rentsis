@@ -5,6 +5,8 @@ services:
     image: nginx:alpine
     container_name: superadmin_frontend
     restart: always
+    ports:
+      - "80:80"
     volumes:
       - ./frontend/build:/usr/share/nginx/html:ro
     command: |
@@ -16,15 +18,8 @@ services:
           try_files \$$uri \$$uri/ /index.html;
         }
       }" > /etc/nginx/conf.d/default.conf && nginx -g "daemon off;"'
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.superadmin-frontend.rule=Host(`${FRONTEND_DOMAIN}`)"
-      - "traefik.http.routers.superadmin-frontend.entrypoints=websecure"
-      - "traefik.http.routers.superadmin-frontend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.superadmin-frontend.loadbalancer.server.port=80"
     networks:
       - superadmin_network
-      - traefik_network
     depends_on:
       - superadmin_backend
 
@@ -32,6 +27,8 @@ services:
     image: python:3.11-slim
     container_name: superadmin_backend
     restart: always
+    ports:
+      - "8001:8001"
     working_dir: /app
     volumes:
       - ./backend:/app
@@ -46,16 +43,9 @@ services:
       - IYZICO_API_KEY=${IYZICO_API_KEY:-}
       - IYZICO_SECRET_KEY=${IYZICO_SECRET_KEY:-}
       - IYZICO_BASE_URL=${IYZICO_BASE_URL:-https://sandbox-api.iyzipay.com}
-      - FRONTEND_URL=https://${FRONTEND_DOMAIN}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.superadmin-backend.rule=Host(`${BACKEND_DOMAIN}`)"
-      - "traefik.http.routers.superadmin-backend.entrypoints=websecure"
-      - "traefik.http.routers.superadmin-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.superadmin-backend.loadbalancer.server.port=8001"
+      - FRONTEND_URL=http://${SERVER_IP:-72.61.158.147}
     networks:
       - superadmin_network
-      - traefik_network
     depends_on:
       - superadmin_mongodb
 
@@ -71,8 +61,6 @@ services:
 networks:
   superadmin_network:
     driver: bridge
-  traefik_network:
-    external: true
 
 volumes:
   superadmin_mongo_data:
