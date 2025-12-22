@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "name": "Rent A Car Template",
+  "description": "Multi-tenant Rent A Car management system template",
+  "lastUpdated": "2025-12-22",
+  
+  "components": {
+    "frontend": {
+      "path": "/template/frontend",
+      "buildCommand": "yarn build",
+      "outputDir": "build",
+      "framework": "react",
+      "port": 3000
+    },
+    "backend": {
+      "path": "/template/backend",
+      "runtime": "python",
+      "entrypoint": "server.py",
+      "port": 8001
+    }
+  },
+  
+  "features": {
+    "dashboard": true,
+    "vehicles": true,
+    "customers": true,
+    "reservations": true,
+    "priceCalendar": true,
+    "hgs": true,
+    "kabis": true,
+    "gps": true,
+    "payments": true,
+    "reports": true,
+    "support": true,
+    "themeStore": true,
+    "settings": true
+  },
+  
+  "defaultSettings": {
+    "theme": {
+      "primaryColor": "#0066FF",
+      "darkMode": false
+    },
+    "locale": "tr-TR",
+    "currency": "TRY",
+    "dateFormat": "DD.MM.YYYY"
+  },
+  
+  "docker": {
+    "network": "tenant_network",
+    "volumes": {
+      "mongodb": "{company_code}_mongo_data",
+      "backend": "{company_code}_backend_data",
+      "frontend": "{company_code}_frontend_data"
+    }
+  },
+  
+  "updatePolicy": {
+    "preserveData": true,
+    "preserveConfig": true,
+    "updateCode": true,
+    "updateUI": true,
+    "backupBeforeUpdate": true
+  }
+}
