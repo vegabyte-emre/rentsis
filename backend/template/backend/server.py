@@ -1475,6 +1475,74 @@ async def get_public_reservation(reservation_id: str, email: str):
     
     return reservation
 
+# ============== SUPPORT TICKETS (SuperAdmin Entegrasyonu) ==============
+
+class SupportTicketCreate(BaseModel):
+    subject: str
+    message: str
+    priority: str = "normal"
+    category: str = "general"
+
+@app.get("/api/support/tickets")
+async def get_support_tickets(user: dict = Depends(get_current_user)):
+    """Firma destek taleplerini listele"""
+    tickets = await db.support_tickets.find(
+        {"created_by": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return tickets
+
+@app.post("/api/support/tickets")
+async def create_support_ticket(data: SupportTicketCreate, user: dict = Depends(get_current_user)):
+    """Destek talebi oluştur - SuperAdmin'e gönderilir"""
+    import httpx
+    
+    # Get company info
+    company = await db.company.find_one({}, {"_id": 0})
+    company_name = company.get("name", "Bilinmeyen Firma") if company else "Bilinmeyen Firma"
+    
+    ticket = {
+        "id": str(uuid.uuid4()),
+        "subject": data.subject,
+        "message": data.message,
+        "priority": data.priority,
+        "category": data.category,
+        "status": "open",
+        "created_by": user["id"],
+        "created_by_email": user["email"],
+        "created_by_name": user.get("full_name", ""),
+        "company_name": company_name,
+        "company_code": os.environ.get("COMPANY_CODE", "unknown"),
+        "source": "tenant_panel",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "responses": []
+    }
+    
+    # Save locally
+    await db.support_tickets.insert_one(ticket)
+    
+    # Try to send to SuperAdmin
+    superadmin_url = os.environ.get("SUPERADMIN_API_URL", "https://api.vegarent.com")
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            await client.post(
+                f"{superadmin_url}/api/superadmin/support/tickets/incoming",
+                json=ticket,
+                headers={"X-Tenant-Secret": os.environ.get("TENANT_SECRET", "")}
+            )
+    except Exception as e:
+        logger.warning(f"Could not send ticket to SuperAdmin: {e}")
+    
+    return {"success": True, "ticket_id": ticket["id"], "message": "Destek talebiniz oluşturuldu"}
+
+@app.get("/api/support/tickets/{ticket_id}")
+async def get_support_ticket(ticket_id: str, user: dict = Depends(get_current_user)):
+    """Destek talebi detayı"""
+    ticket = await db.support_tickets.find_one({"id": ticket_id}, {"_id": 0})
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Talep bulunamadı")
+    return ticket
+
 # ============== HEALTH CHECK ==============
 @app.get("/api/health")
 async def health_check():
