@@ -296,7 +296,7 @@ export function Home() {
           <div className="container mx-auto px-4">
             <Card className="shadow-2xl border-0">
               <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-700">Alış Tarihi</label>
                     <Popover>
@@ -326,13 +326,25 @@ export function Home() {
                     </Popover>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Lokasyon</label>
+                    <label className="text-sm font-medium text-gray-700">Alış Lokasyonu</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
-                        placeholder="Şehir veya havalimanı"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
+                        placeholder="Alış yeri seçin"
+                        value={pickupLocation}
+                        onChange={(e) => setPickupLocation(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Teslim Lokasyonu</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Teslim yeri seçin"
+                        value={dropoffLocation}
+                        onChange={(e) => setDropoffLocation(e.target.value)}
                         className="pl-10"
                       />
                     </div>
