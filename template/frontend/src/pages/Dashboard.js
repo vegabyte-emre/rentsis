@@ -23,7 +23,7 @@ import { toast } from "sonner";
 
 
 export function Dashboard() {
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   const [stats, setStats] = useState(null);
   const [recentReservations, setRecentReservations] = useState([]);
   const [loading, setLoading] = useState(true);
