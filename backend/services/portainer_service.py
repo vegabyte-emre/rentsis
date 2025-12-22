@@ -1052,15 +1052,24 @@ class PortainerService:
                 "cat /usr/share/nginx/html/config.js 2>/dev/null || echo ''"
             )
             
-            if result.get('success') and result.get('output'):
+            if result.get('success'):
                 output = result.get('output', '')
-                # Parse: window.REACT_APP_BACKEND_URL = "https://api.example.com";
-                import re
-                match = re.search(r'window\.REACT_APP_BACKEND_URL\s*=\s*["\']([^"\']+)["\']', output)
-                if match:
-                    url = match.group(1)
-                    logger.info(f"[CONFIG-READ] Found existing API URL in {container_name}: {url}")
-                    return url
+                
+                # Handle both string and dict output formats
+                if isinstance(output, dict):
+                    output = output.get('text', '') or output.get('output', '')
+                
+                if output:
+                    # Clean any control characters
+                    import re
+                    output = re.sub(r'[\x00-\x1f]', '', str(output))
+                    
+                    # Parse: window.REACT_APP_BACKEND_URL = "https://api.example.com";
+                    match = re.search(r'window\.REACT_APP_BACKEND_URL\s*=\s*["\']([^"\']+)["\']', output)
+                    if match:
+                        url = match.group(1)
+                        logger.info(f"[CONFIG-READ] Found existing API URL in {container_name}: {url}")
+                        return url
             
             logger.warning(f"[CONFIG-READ] No existing config.js found in {container_name}")
             return None
