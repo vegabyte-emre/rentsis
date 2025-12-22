@@ -24,6 +24,7 @@ import {
   HelpCircle,
   Wallet,
   FileCheck,
+  CalendarDays,
 } from "lucide-react";
 
 // Check if we're on panel subdomain
@@ -33,6 +34,7 @@ const pathPrefix = isAdminPanel ? '' : '/admin';
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: `${pathPrefix}/dashboard`, roles: ["superadmin", "firma_admin", "operasyon", "muhasebe"] },
   { icon: Car, label: "Araçlar", path: `${pathPrefix}/vehicles`, roles: ["superadmin", "firma_admin", "operasyon", "personel"] },
+  { icon: CalendarDays, label: "Fiyat Takvimi", path: `${pathPrefix}/price-calendar`, roles: ["superadmin", "firma_admin", "operasyon"] },
   { icon: Users, label: "Müşteriler", path: `${pathPrefix}/customers`, roles: ["superadmin", "firma_admin", "operasyon"] },
   { icon: Calendar, label: "Rezervasyonlar", path: `${pathPrefix}/reservations`, roles: ["superadmin", "firma_admin", "operasyon", "personel"] },
   { icon: MapPin, label: "GPS Takip", path: `${pathPrefix}/gps`, roles: ["superadmin", "firma_admin", "operasyon"] },
