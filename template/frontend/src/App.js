@@ -136,6 +136,7 @@ function AppRoutes() {
         <Route path="/gps" element={<GPS />} />
         <Route path="/hgs" element={<HGS />} />
         <Route path="/kabis" element={<Kabis />} />
+        <Route path="/integrations" element={<Integrations />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
