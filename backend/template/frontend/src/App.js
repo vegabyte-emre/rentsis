@@ -22,6 +22,7 @@ import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { ThemeStore } from "./pages/ThemeStore";
 import { Support } from "./pages/Support";
+import Locations from "./pages/Locations";
 
 // Public Pages (Customer Facing)
 import { Home } from "./pages/public/Home";
