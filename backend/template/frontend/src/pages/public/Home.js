@@ -45,6 +45,7 @@ export function Home() {
   const [returnDate, setReturnDate] = useState(null);
   const [pickupLocation, setPickupLocation] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -55,12 +56,14 @@ export function Home() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [vehiclesRes, themeRes] = await Promise.all([
+      const [vehiclesRes, themeRes, locationsRes] = await Promise.all([
         axios.get(`${getApiUrl()}/api/public/vehicles?limit=8`),
         axios.get(`${getApiUrl()}/api/public/theme-settings`),
+        axios.get(`${getApiUrl()}/api/locations`).catch(() => ({ data: [] })),
       ]);
       setVehicles(vehiclesRes.data);
       setThemeData(themeRes.data);
+      setLocations(locationsRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
