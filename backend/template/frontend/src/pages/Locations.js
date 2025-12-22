@@ -22,7 +22,7 @@ import {
 } from "../components/ui/table";
 import { MapPin, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { getApiUrl } from "../config";
+import getApiUrl from '../config/api';
 
 export default function Locations() {
   const [locations, setLocations] = useState([]);
