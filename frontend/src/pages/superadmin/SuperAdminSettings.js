@@ -75,7 +75,7 @@ export function SuperAdminSettings() {
   const deployTraefik = async () => {
     setDeploying(true);
     try {
-      const response = await axios.post(`${API_URL}/api/superadmin/traefik/deploy`);
+      const response = await axios.post(`${getApiUrl()}/api/superadmin/traefik/deploy`);
       toast.success(response.data.message);
       checkTraefikStatus();
     } catch (error) {
@@ -88,7 +88,7 @@ export function SuperAdminSettings() {
   const deployFrontendToKVM = async () => {
     setDeployingFrontend(true);
     try {
-      const response = await axios.post(`${API_URL}/api/superadmin/deploy-frontend-to-kvm`);
+      const response = await axios.post(`${getApiUrl()}/api/superadmin/deploy-frontend-to-kvm`);
       if (response.data.success) {
         toast.success("Frontend KVM sunucusuna başarıyla deploy edildi!");
       } else {
@@ -109,6 +109,59 @@ export function SuperAdminSettings() {
         <p className="text-slate-400 mt-1">Genel platform yapılandırması</p>
       </div>
 
+      {/* Template Info Card */}
+      {templateInfo && templateInfo.template_config && (
+        <Card className="bg-gradient-to-r from-purple-900/30 to-indigo-900/30 border-purple-500/30">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <FolderGit2 className="h-5 w-5 text-purple-400" />
+              Template Bilgisi (GitHub)
+            </CardTitle>
+            <CardDescription className="text-slate-400">
+              /app/template klasöründen okunan şablon bilgileri
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-3 bg-slate-900/50 rounded-lg">
+                <p className="text-xs text-slate-400">Versiyon</p>
+                <p className="text-white font-mono">{templateInfo.template_config.version}</p>
+              </div>
+              <div className="p-3 bg-slate-900/50 rounded-lg">
+                <p className="text-xs text-slate-400">Son Güncelleme</p>
+                <p className="text-white font-mono">{templateInfo.template_config.lastUpdated}</p>
+              </div>
+              <div className="p-3 bg-slate-900/50 rounded-lg">
+                <p className="text-xs text-slate-400">Frontend</p>
+                <p className={`font-medium ${templateInfo.frontend.has_src ? 'text-green-400' : 'text-red-400'}`}>
+                  {templateInfo.frontend.has_src ? '✓ Hazır' : '✗ Eksik'}
+                </p>
+              </div>
+              <div className="p-3 bg-slate-900/50 rounded-lg">
+                <p className="text-xs text-slate-400">Backend</p>
+                <p className={`font-medium ${templateInfo.backend.has_server ? 'text-green-400' : 'text-red-400'}`}>
+                  {templateInfo.backend.has_server ? '✓ Hazır' : '✗ Eksik'}
+                </p>
+              </div>
+            </div>
+            
+            {/* Features */}
+            <div className="mt-4 p-3 bg-slate-900/50 rounded-lg">
+              <p className="text-xs text-slate-400 mb-2">Dahil Edilen Özellikler</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(templateInfo.template_config.features || {}).map(([key, value]) => (
+                  value && (
+                    <span key={key} className="px-2 py-1 bg-purple-600/30 text-purple-300 rounded text-xs">
+                      {key}
+                    </span>
+                  )
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Master Template Settings */}
       <Card className="bg-gradient-to-r from-orange-900/30 to-red-900/30 border-orange-500/30">
         <CardHeader>
@@ -117,16 +170,17 @@ export function SuperAdminSettings() {
             Master Template Yönetimi
           </CardTitle>
           <CardDescription className="text-slate-400">
-            Tüm firma panellerinin temel şablonunu güncelle
+            /app/template klasöründen master template'i güncelle
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
-            <p className="text-sm text-slate-300 mb-3">ℹ️ Master Template Güncelleme Süreci:</p>
+            <p className="text-sm text-slate-300 mb-3">📋 Template Güncelleme Akışı:</p>
             <ol className="text-sm text-slate-400 space-y-2 list-decimal list-inside">
-              <li><strong>1. Adım:</strong> GitHub'a "Save to GitHub" yapın (Emergent'ten)</li>
-              <li><strong>2. Adım:</strong> Aşağıdaki "Master Template Güncelle" butonuna tıklayın</li>
-              <li><strong>3. Adım:</strong> Firmalar sayfasından tek tek veya toplu güncelleme yapın</li>
+              <li><strong>GitHub Push:</strong> Kod değişikliklerini GitHub'a gönderin</li>
+              <li><strong>Save to GitHub:</strong> Emergent'te "Save to GitHub" yapın</li>
+              <li><strong>Master Template Güncelle:</strong> Bu butonla master template'i güncelleyin</li>
+              <li><strong>Firma Güncelle:</strong> Firmalar sayfasından tenant'ları güncelleyin</li>
             </ol>
           </div>
           
@@ -145,7 +199,7 @@ export function SuperAdminSettings() {
                 </p>
               </div>
             </div>
-          )}
+          )}}
           
           <div className="flex gap-3">
             <Button 
