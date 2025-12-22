@@ -50,9 +50,6 @@ services:
 networks:
   app_network:
     driver: bridge
-  portainer_network:
-    external: true
-    name: bridge
 
 volumes:
   mongo_data:
