@@ -9,8 +9,6 @@ services:
     restart: always
     ports:
       - "3000:80"
-    depends_on:
-      - superadmin_backend
     networks:
       - app_network
 
