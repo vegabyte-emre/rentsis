@@ -1445,7 +1445,10 @@ async def update_master_template(user: dict = Depends(get_current_user)):
     logger.info("[MASTER-TEMPLATE] Starting master template update from /app/template...")
     
     template_path = "/app/template"
-    frontend_build_path = "/app/frontend/build"
+    # Use template frontend build, not superadmin frontend
+    template_frontend_build = f"{template_path}/frontend/build"
+    # Fallback to superadmin build if template build doesn't exist
+    frontend_build_path = template_frontend_build if os.path.exists(template_frontend_build) else "/app/frontend/build"
     
     try:
         results = {
