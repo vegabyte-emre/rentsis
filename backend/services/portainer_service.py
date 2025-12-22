@@ -392,7 +392,13 @@ class PortainerService:
         """Make request to Portainer API"""
         url = f"{self.base_url}/api/{endpoint}"
         
-        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+        # Create SSL context that ignores certificate verification
+        import ssl
+        ssl_context = ssl.create_default_context()
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+        
+        async with httpx.AsyncClient(verify=False, timeout=60.0, http2=False) as client:
             try:
                 if files:
                     # For file uploads, don't use JSON
