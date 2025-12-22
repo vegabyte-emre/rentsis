@@ -1623,21 +1623,43 @@ class PortainerService:
             logger.info(f"[UPDATE-TEMPLATE] Step 3: Installing dependencies...")
             results['deps_install'] = await self.install_backend_dependencies(backend_container)
             
-            # Step 4: Recreate config.js with correct API URL
-            logger.info(f"[UPDATE-TEMPLATE] Step 4: Updating config.js...")
-            results['config_js'] = await self.create_config_js(frontend_container, api_url)
-            
-            # Step 5: Re-configure Nginx for SPA
-            logger.info(f"[UPDATE-TEMPLATE] Step 5: Updating Nginx config...")
+            # Step 4: Re-configure Nginx for SPA
+            logger.info(f"[UPDATE-TEMPLATE] Step 4: Updating Nginx config...")
             results['nginx_config'] = await self.configure_nginx_spa(frontend_container)
             
-            # Step 6: Restart containers to apply changes
-            logger.info(f"[UPDATE-TEMPLATE] Step 6: Restarting containers...")
+            # Step 5: Restart backend container
+            logger.info(f"[UPDATE-TEMPLATE] Step 5: Restarting backend...")
             results['backend_restart'] = await self.restart_container(backend_container)
             await asyncio.sleep(3)
-            results['frontend_restart'] = await self.restart_container(frontend_container)
             
-            logger.info(f"[UPDATE-TEMPLATE] Template update complete for {company_code}")
+            # Step 6: CRITICAL - Write config.js with correct HTTPS URL BEFORE frontend restart
+            # This must happen AFTER frontend copy but BEFORE restart to ensure it persists
+            logger.info(f"[UPDATE-TEMPLATE] Step 6: Writing config.js with URL: {api_url}")
+            results['config_js'] = await self.create_config_js(frontend_container, api_url)
+            
+            # Step 7: Verify config.js was written correctly
+            verify_url = await self._get_existing_config_url(frontend_container)
+            if verify_url != api_url:
+                logger.error(f"[UPDATE-TEMPLATE] Config.js verification FAILED! Expected: {api_url}, Got: {verify_url}")
+                # Try writing again
+                await self.create_config_js(frontend_container, api_url)
+                logger.info(f"[UPDATE-TEMPLATE] Retried config.js write")
+            else:
+                logger.info(f"[UPDATE-TEMPLATE] Config.js verified: {verify_url}")
+            
+            # Step 8: Reload nginx to pick up new config (don't restart, just reload)
+            logger.info(f"[UPDATE-TEMPLATE] Step 8: Reloading Nginx...")
+            await self.exec_in_container(frontend_container, "nginx -s reload")
+            results['frontend_restart'] = {'success': True, 'method': 'nginx_reload'}
+            
+            # Step 9: Final verification
+            await asyncio.sleep(2)
+            final_url = await self._get_existing_config_url(frontend_container)
+            results['final_config_url'] = final_url
+            logger.info(f"[UPDATE-TEMPLATE] Final config.js URL: {final_url}")
+            
+            if final_url and final_url.startswith("https://"):
+                logger.info(f"[UPDATE-TEMPLATE] Template update complete for {company_code} - URL preserved!")
             
             return {
                 'success': True,
