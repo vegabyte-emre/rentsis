@@ -219,6 +219,7 @@ function AppRoutes() {
         <Route path="/gps" element={<GPS />} />
         <Route path="/hgs" element={<HGS />} />
         <Route path="/kabis" element={<Kabis />} />
+        <Route path="/integrations" element={<Integrations />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
@@ -243,6 +244,7 @@ function AppRoutes() {
         <Route path="/admin/gps" element={<GPS />} />
         <Route path="/admin/hgs" element={<HGS />} />
         <Route path="/admin/kabis" element={<Kabis />} />
+        <Route path="/admin/integrations" element={<Integrations />} />
         <Route path="/admin/payments" element={<Payments />} />
         <Route path="/admin/reports" element={<Reports />} />
         <Route path="/admin/settings" element={<Settings />} />
