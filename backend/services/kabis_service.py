@@ -119,7 +119,7 @@ class KabisService:
                         'success': True,
                         'notification_id': result.get('bildirim_no', notification_id),
                         'status': 'submitted',
-                        'message': 'Bildirim KABİS'e başarıyla gönderildi',
+                        'message': 'Bildirim KABIS sistemine basariyla gonderildi',
                         'source': 'kabis_api',
                         'kabis_response': result,
                         'created_at': now
