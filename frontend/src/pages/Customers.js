@@ -284,6 +284,17 @@ export function Customers() {
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <Phone className="h-3 w-3" />
                             {customer.phone}
+                            {customer.phone && (
+                              <a
+                                href={getWhatsAppLink(customer.phone, `Merhaba ${customer.full_name}, `)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-1 text-green-600 hover:text-green-700"
+                                title="WhatsApp ile mesaj gonder"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </a>
+                            )}
                           </div>
                         </div>
                       </TableCell>
