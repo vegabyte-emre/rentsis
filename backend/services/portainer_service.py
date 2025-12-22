@@ -1315,7 +1315,14 @@ class PortainerService:
         safe_code = company_code.replace('-', '').replace('_', '')
         frontend_container = f"{safe_code}_frontend"
         backend_container = f"{safe_code}_backend"
-        api_url = f"https://api.{domain}"
+        
+        # Get backend port from container
+        backend_port = await self._get_container_port(backend_container)
+        if backend_port:
+            api_url = f"http://72.61.158.147:{backend_port}"
+        else:
+            # Fallback to domain-based URL
+            api_url = f"https://api.{domain}"
         
         results = {
             'frontend_copy': None,
