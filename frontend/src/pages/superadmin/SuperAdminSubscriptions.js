@@ -58,10 +58,30 @@ import toast from 'react-hot-toast';
 import { IyzicoPayment } from './IyzicoPayment';
 
 const PLANS = {
-  free: { name: 'Deneme', color: 'bg-gray-500', price: 0 },
-  starter: { name: 'Başlangıç', color: 'bg-blue-500', price: 999 },
-  professional: { name: 'Profesyonel', color: 'bg-purple-500', price: 2499 },
-  enterprise: { name: 'Kurumsal', color: 'bg-orange-500', price: 4999 }
+  free: { 
+    name: 'Deneme', 
+    color: 'bg-gray-500', 
+    price: 0,
+    features: ['Yönetim Paneli', '5 Araç', '14 Gün']
+  },
+  starter: { 
+    name: 'Başlangıç', 
+    color: 'bg-blue-500', 
+    price: 1499,
+    features: ['Yönetim Paneli', '15 Araç', 'Fiyat Takvimi', '❌ Landing Page', '❌ Mobil App']
+  },
+  professional: { 
+    name: 'Profesyonel', 
+    color: 'bg-purple-500', 
+    price: 2999,
+    features: ['Yönetim Paneli', '50 Araç', '✅ Landing Page', '✅ Müşteri Portali', 'HGS Takip', '❌ Mobil App']
+  },
+  enterprise: { 
+    name: 'Kurumsal', 
+    color: 'bg-orange-500', 
+    price: 5999,
+    features: ['Tüm Özellikler', 'Sınırsız Araç', '✅ Mobil Uygulamalar', 'GPS Takip', 'WhatsApp', 'White-label']
+  }
 };
 
 const STATUS_STYLES = {
