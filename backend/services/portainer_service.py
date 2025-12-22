@@ -1040,6 +1040,35 @@ class PortainerService:
                 logger.error(f"[TEMPLATE-COPY] Error: {str(e)}")
                 return {'error': str(e)}
 
+    async def _get_existing_config_url(self, container_name: str) -> Optional[str]:
+        """
+        Read existing config.js from container and extract the API URL.
+        This is used to PRESERVE the API URL during template updates.
+        """
+        try:
+            # Execute cat command to read config.js
+            result = await self.exec_in_container(
+                container_name, 
+                "cat /usr/share/nginx/html/config.js 2>/dev/null || echo ''"
+            )
+            
+            if result.get('success') and result.get('output'):
+                output = result.get('output', '')
+                # Parse: window.REACT_APP_BACKEND_URL = "https://api.example.com";
+                import re
+                match = re.search(r'window\.REACT_APP_BACKEND_URL\s*=\s*["\']([^"\']+)["\']', output)
+                if match:
+                    url = match.group(1)
+                    logger.info(f"[CONFIG-READ] Found existing API URL in {container_name}: {url}")
+                    return url
+            
+            logger.warning(f"[CONFIG-READ] No existing config.js found in {container_name}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"[CONFIG-READ] Error reading config.js from {container_name}: {str(e)}")
+            return None
+
     async def create_config_js(self, container_name: str, api_url: str) -> Dict[str, Any]:
         """
         Create config.js file with runtime API URL in frontend container
