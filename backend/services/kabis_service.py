@@ -58,9 +58,10 @@ class KabisService:
                           'rental_start', 'rental_end']
         missing = [f for f in required_fields if not rental_data.get(f)]
         if missing:
+            missing_str = ', '.join(missing)
             return {
                 'success': False,
-                'error': f'Eksik alanlar: {', '.join(missing)}'
+                'error': f'Eksik alanlar: {missing_str}'
             }
         
         # Validate TC Kimlik No (11 digits)
