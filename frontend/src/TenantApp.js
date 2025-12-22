@@ -127,6 +127,7 @@ function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin/dashboard" element={<Navigate to="/dashboard" replace />} />
         <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/price-calendar" element={<PriceCalendar />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/reservations/new" element={<NewReservation />} />
