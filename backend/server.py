@@ -1449,8 +1449,10 @@ async def get_portainer_status(user: dict = Depends(get_current_user)):
     try:
         # Direct test to Portainer API with SSL disabled
         import httpx
+        import traceback
         async with httpx.AsyncClient(verify=False, timeout=10.0, http2=False) as client:
             url = f"{portainer_service.base_url}/api/system/status"
+            logger.info(f"Testing Portainer connection to: {url}")
             response = await client.get(url, headers=portainer_service.headers)
             
             if response.status_code == 200:
@@ -1468,16 +1470,19 @@ async def get_portainer_status(user: dict = Depends(get_current_user)):
                     "error": f"HTTP {response.status_code}: {response.text[:200]}"
                 }
     except httpx.ConnectError as e:
+        logger.error(f"Portainer connection error: {traceback.format_exc()}")
         return {
             "connected": False,
             "url": portainer_service.base_url,
-            "error": f"Bağlantı hatası: Portainer'a ulaşılamıyor. {str(e)}"
+            "error": f"Bağlantı hatası: {str(e)}"
         }
     except Exception as e:
+        import traceback
+        logger.error(f"Portainer error: {traceback.format_exc()}")
         return {
             "connected": False,
             "url": portainer_service.base_url,
-            "error": f"Hata: {str(e)}"
+            "error": f"Hata: {type(e).__name__}: {str(e)}"
         }
 
 @api_router.post("/superadmin/deploy-superadmin-stack")
