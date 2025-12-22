@@ -20,6 +20,7 @@ import { Payments } from "./pages/Payments";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { ThemeStore } from "./pages/ThemeStore";
+import { PriceCalendar } from "./pages/PriceCalendar";
 
 // SuperAdmin Pages
 import { SuperAdminLogin } from "./pages/superadmin/SuperAdminLogin";
