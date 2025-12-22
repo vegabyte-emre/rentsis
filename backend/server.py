@@ -4622,6 +4622,96 @@ async def convert_franchise_to_company(
         "message": "Franchise başarıyla firmaya dönüştürüldü. Şimdi deploy edebilirsiniz."
     }
 
+# ============== Price Rules API ==============
+@api_router.get("/price-rules")
+async def get_price_rules(user: dict = Depends(get_current_user)):
+    """Get all price rules for company"""
+    query = {}
+    if user["role"] not in ["superadmin"]:
+        query["company_id"] = user.get("company_id")
+    
+    rules = await db.price_rules.find(query, {"_id": 0}).to_list(1000)
+    return rules
+
+@api_router.post("/price-rules")
+async def create_price_rule(
+    vehicle_id: str = Body(...),
+    start_date: str = Body(...),
+    end_date: str = Body(...),
+    daily_price: float = Body(...),
+    weekend_price: float = Body(None),
+    weekly_price: float = Body(None),
+    monthly_price: float = Body(None),
+    user: dict = Depends(get_current_user)
+):
+    """Create or update a price rule for a vehicle and date range"""
+    now = datetime.now(timezone.utc)
+    
+    # Check if rule exists for this vehicle and overlapping dates
+    existing = await db.price_rules.find_one({
+        "vehicle_id": vehicle_id,
+        "$or": [
+            {"start_date": {"$lte": end_date}, "end_date": {"$gte": start_date}}
+        ]
+    })
+    
+    rule_data = {
+        "vehicle_id": vehicle_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "daily_price": daily_price,
+        "weekend_price": weekend_price or daily_price,
+        "weekly_price": weekly_price or (daily_price * 6),
+        "monthly_price": monthly_price or (daily_price * 25),
+        "company_id": user.get("company_id"),
+        "updated_at": now.isoformat(),
+        "updated_by": user["id"]
+    }
+    
+    if existing:
+        # Update existing rule
+        await db.price_rules.update_one(
+            {"id": existing["id"]},
+            {"$set": rule_data}
+        )
+        return {"success": True, "message": "Fiyat kuralı güncellendi", "id": existing["id"]}
+    else:
+        # Create new rule
+        rule_data["id"] = str(uuid.uuid4())
+        rule_data["created_at"] = now.isoformat()
+        await db.price_rules.insert_one(rule_data)
+        return {"success": True, "message": "Fiyat kuralı oluşturuldu", "id": rule_data["id"]}
+
+@api_router.delete("/price-rules/{rule_id}")
+async def delete_price_rule(rule_id: str, user: dict = Depends(get_current_user)):
+    """Delete a price rule"""
+    result = await db.price_rules.delete_one({"id": rule_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Fiyat kuralı bulunamadı")
+    return {"success": True, "message": "Fiyat kuralı silindi"}
+
+# ============== Vehicle Status API ==============
+@api_router.patch("/vehicles/{vehicle_id}/status")
+async def update_vehicle_status(
+    vehicle_id: str,
+    status: str = Body(..., embed=True),
+    user: dict = Depends(get_current_user)
+):
+    """Update vehicle status"""
+    valid_statuses = ["available", "rented", "service", "unavailable"]
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Geçersiz durum. Geçerli durumlar: {valid_statuses}")
+    
+    result = await db.vehicles.update_one(
+        {"id": vehicle_id},
+        {"$set": {"status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Araç bulunamadı")
+    
+    return {"success": True, "message": "Araç durumu güncellendi"}
+
 app.include_router(api_router)
 
 app.add_middleware(
