@@ -172,6 +172,8 @@ services:
       - JWT_SECRET={safe_code}_jwt_secret_2024
       - COMPANY_CODE={company_code}
       - COMPANY_NAME={company_name}
+      - MODULE_NAME=server
+      - VARIABLE_NAME=app
     ports:
       - "{backend_port}:80"
     depends_on:
