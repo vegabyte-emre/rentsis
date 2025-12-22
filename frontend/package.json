@@ -62,6 +62,7 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
+    "build:tenant": "REACT_APP_ENTRY=tenant craco build",
     "test": "craco test"
   },
   "browserslist": {
