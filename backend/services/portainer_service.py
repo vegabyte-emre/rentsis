@@ -1024,7 +1024,7 @@ class PortainerService:
         import tarfile
         import io as std_io
         
-        config_content = f'window.__RUNTIME_CONFIG__ = {{ API_URL: "{api_url}" }};'
+        config_content = f'window.REACT_APP_BACKEND_URL = "{api_url}";'
         
         tar_buffer = std_io.BytesIO()
         with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
