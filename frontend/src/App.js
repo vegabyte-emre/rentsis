@@ -211,14 +211,18 @@ function AppRoutes() {
       >
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/price-calendar" element={<PriceCalendar />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/reservations" element={<Reservations />} />
         <Route path="/reservations/new" element={<NewReservation />} />
         <Route path="/gps" element={<GPS />} />
+        <Route path="/hgs" element={<HGS />} />
+        <Route path="/kabis" element={<Kabis />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/theme-store" element={<ThemeStore />} />
+        <Route path="/support" element={<Support />} />
       </Route>
 
       {/* ============== COMPANY ADMIN PROTECTED ROUTES (main domain - with /admin prefix) ============== */}
