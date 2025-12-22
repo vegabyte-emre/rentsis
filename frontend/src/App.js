@@ -235,10 +235,13 @@ function AppRoutes() {
       >
         <Route path="/admin/dashboard" element={<Dashboard />} />
         <Route path="/admin/vehicles" element={<Vehicles />} />
+        <Route path="/admin/price-calendar" element={<PriceCalendar />} />
         <Route path="/admin/customers" element={<Customers />} />
         <Route path="/admin/reservations" element={<Reservations />} />
         <Route path="/admin/reservations/new" element={<NewReservation />} />
         <Route path="/admin/gps" element={<GPS />} />
+        <Route path="/admin/hgs" element={<HGS />} />
+        <Route path="/admin/kabis" element={<Kabis />} />
         <Route path="/admin/payments" element={<Payments />} />
         <Route path="/admin/reports" element={<Reports />} />
         <Route path="/admin/settings" element={<Settings />} />
