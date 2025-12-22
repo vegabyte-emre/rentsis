@@ -102,6 +102,7 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    session_token: Optional[str] = None
     user: UserResponse
 
 class VehicleCreate(BaseModel):
