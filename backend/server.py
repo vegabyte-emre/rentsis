@@ -2076,6 +2076,7 @@ async def deploy_local_build_to_tenant(request: DeployBuildRequest, user: dict =
     """
     SuperAdmin: Deploy local frontend build to a tenant's container.
     Uses the /app/frontend/build directory from this container.
+    PRESERVES existing config.js API URL if it's HTTPS.
     """
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can deploy builds")
@@ -2090,9 +2091,19 @@ async def deploy_local_build_to_tenant(request: DeployBuildRequest, user: dict =
     
     try:
         frontend_container = f"{request.company_code}_frontend"
-        api_url = f"https://api.{request.domain}"
         
-        # First, clean the nginx html directory
+        # CRITICAL: Read existing config.js BEFORE cleaning the directory
+        existing_url = await portainer_service._get_existing_config_url(frontend_container)
+        
+        # Determine API URL to use (preserve existing HTTPS URL)
+        if existing_url and existing_url.startswith("https://"):
+            api_url = existing_url
+            logger.info(f"[DEPLOY-BUILD] PRESERVING existing HTTPS URL: {api_url}")
+        else:
+            api_url = f"https://api.{request.domain}"
+            logger.info(f"[DEPLOY-BUILD] Using domain-based URL: {api_url}")
+        
+        # Now clean the nginx html directory
         logger.info(f"[DEPLOY-BUILD] Cleaning {frontend_container} html directory...")
         clean_result = await portainer_service.exec_in_container(
             frontend_container,
@@ -2128,8 +2139,8 @@ async def deploy_local_build_to_tenant(request: DeployBuildRequest, user: dict =
         if result.get('error'):
             raise HTTPException(status_code=500, detail=f"Upload failed: {result.get('error')}")
         
-        # Update config.js with correct API URL
-        logger.info(f"[DEPLOY-BUILD] Updating config.js...")
+        # Update config.js with the preserved/correct API URL
+        logger.info(f"[DEPLOY-BUILD] Creating config.js with API_URL={api_url}")
         config_result = await portainer_service.create_config_js(frontend_container, api_url)
         
         # Restart nginx container to pick up new files
