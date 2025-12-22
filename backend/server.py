@@ -8,6 +8,7 @@ import os
 import logging
 import base64
 import hashlib
+import json
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
