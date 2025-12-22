@@ -650,6 +650,165 @@ async def create_return(data: ReturnCreate, user: dict = Depends(get_current_use
     
     return {"success": True, "return_id": return_record["id"], "km_driven": km_driven, "message": "Araç iade alındı"}
 
+# ============== RESERVATION CANCEL & PAY (Customer App) ==============
+
+@app.delete("/api/reservations/{reservation_id}")
+async def cancel_reservation(reservation_id: str, user: dict = Depends(get_current_user)):
+    """Rezervasyon iptal - Customer App"""
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Rezervasyon bulunamadı")
+    
+    if reservation.get("status") in ["active", "completed"]:
+        raise HTTPException(status_code=400, detail="Aktif veya tamamlanmış rezervasyon iptal edilemez")
+    
+    await db.reservations.update_one(
+        {"id": reservation_id},
+        {"$set": {"status": "cancelled", "cancelled_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Release vehicle
+    await db.vehicles.update_one(
+        {"id": reservation.get("vehicle_id")},
+        {"$set": {"status": "available"}}
+    )
+    
+    return {"success": True, "message": "Rezervasyon iptal edildi"}
+
+@app.post("/api/reservations/{reservation_id}/pay")
+async def pay_reservation(reservation_id: str, user: dict = Depends(get_current_user)):
+    """Rezervasyon ödemesi - Customer App"""
+    reservation = await db.reservations.find_one({"id": reservation_id}, {"_id": 0})
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Rezervasyon bulunamadı")
+    
+    if reservation.get("payment_status") == "paid":
+        raise HTTPException(status_code=400, detail="Ödeme zaten yapılmış")
+    
+    # TODO: Gerçek ödeme entegrasyonu (iyzico)
+    payment = {
+        "id": str(uuid.uuid4()),
+        "reservation_id": reservation_id,
+        "amount": reservation.get("total_price", 0),
+        "status": "completed",
+        "method": "online",
+        "paid_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.payments.insert_one(payment)
+    
+    await db.reservations.update_one(
+        {"id": reservation_id},
+        {"$set": {"payment_status": "paid", "payment_id": payment["id"], "status": "confirmed"}}
+    )
+    
+    return {"success": True, "payment_id": payment["id"], "message": "Ödeme başarılı"}
+
+# ============== NOTIFICATIONS (Customer App) ==============
+
+@app.get("/api/notifications")
+async def get_notifications(user: dict = Depends(get_current_user)):
+    """Bildirimler - Customer App"""
+    notifications = await db.notifications.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return notifications
+
+@app.get("/api/notifications/unread-count")
+async def get_unread_count(user: dict = Depends(get_current_user)):
+    """Okunmamış bildirim sayısı"""
+    count = await db.notifications.count_documents({"user_id": user["id"], "is_read": False})
+    return {"count": count}
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user: dict = Depends(get_current_user)):
+    """Bildirimi okundu işaretle"""
+    await db.notifications.update_one(
+        {"id": notification_id, "user_id": user["id"]},
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"success": True}
+
+@app.put("/api/notifications/read-all")
+async def mark_all_notifications_read(user: dict = Depends(get_current_user)):
+    """Tüm bildirimleri okundu işaretle"""
+    await db.notifications.update_many(
+        {"user_id": user["id"], "is_read": False},
+        {"$set": {"is_read": True, "read_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    return {"success": True}
+
+# ============== LOCATIONS (Customer App) ==============
+
+@app.get("/api/locations")
+async def get_locations(city: Optional[str] = None):
+    """Teslim/İade lokasyonları"""
+    query = {}
+    if city:
+        query["city"] = city
+    
+    locations = await db.locations.find(query, {"_id": 0}).to_list(100)
+    
+    if not locations:
+        # Default lokasyonlar
+        return [
+            {"id": "1", "name": "Havalimanı Ofisi", "city": "İstanbul", "address": "İstanbul Havalimanı", "is_active": True},
+            {"id": "2", "name": "Şehir Merkezi", "city": "İstanbul", "address": "Taksim Meydanı", "is_active": True},
+            {"id": "3", "name": "Otogar", "city": "İstanbul", "address": "Büyük İstanbul Otogarı", "is_active": True}
+        ]
+    return locations
+
+# ============== CAMPAIGNS (Customer App) ==============
+
+@app.get("/api/campaigns")
+async def get_campaigns():
+    """Aktif kampanyalar"""
+    campaigns = await db.campaigns.find(
+        {"is_active": True},
+        {"_id": 0}
+    ).to_list(20)
+    
+    if not campaigns:
+        # Default kampanyalar
+        return [
+            {
+                "id": "1",
+                "title": "Hafta Sonu İndirimi",
+                "description": "Hafta sonu kiralamalarında %20 indirim!",
+                "discount_percent": 20,
+                "is_active": True
+            },
+            {
+                "id": "2", 
+                "title": "Uzun Dönem Avantajı",
+                "description": "7 gün ve üzeri kiralamalarda %15 indirim",
+                "discount_percent": 15,
+                "is_active": True
+            }
+        ]
+    return campaigns
+
+# ============== USER PROFILE (Customer App) ==============
+
+@app.put("/api/users/me")
+async def update_profile(data: dict, user: dict = Depends(get_current_user)):
+    """Profil güncelle - Customer App"""
+    allowed_fields = ["full_name", "phone", "tc_kimlik", "address"]
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Güncellenecek alan bulunamadı")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": update_data}
+    )
+    
+    return {"success": True, "message": "Profil güncellendi"}
+
 # ============== PRICE RULES ROUTES ==============
 @app.post("/api/price-rules", response_model=PriceRuleResponse)
 async def create_price_rule(rule: PriceRuleCreate, user: dict = Depends(get_current_user)):
