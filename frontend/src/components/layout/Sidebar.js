@@ -22,7 +22,7 @@ import {
   Menu,
   Palette,
   HelpCircle,
-  Toll,
+  Wallet,
   FileCheck,
 } from "lucide-react";
 
