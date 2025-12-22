@@ -1521,18 +1521,25 @@ class PortainerService:
         - MongoDB data (customers, vehicles, reservations, etc.)
         - Admin credentials
         - Theme settings stored in DB
+        - config.js API URL (if domain is provided)
         """
         safe_code = company_code.replace('-', '').replace('_', '')
         frontend_container = f"{safe_code}_frontend"
         backend_container = f"{safe_code}_backend"
         
-        # Get backend port from container
-        backend_port = await self._get_container_port(backend_container)
-        if backend_port:
-            api_url = f"http://72.61.158.147:{backend_port}"
-        else:
-            # Fallback to domain-based URL
+        # IMPORTANT: Always use HTTPS domain-based URL if domain is provided
+        # This prevents Mixed Content errors on HTTPS sites
+        if domain:
             api_url = f"https://api.{domain}"
+            logger.info(f"[UPDATE-TEMPLATE] Using domain-based HTTPS URL: {api_url}")
+        else:
+            # Fallback to port-based URL only if no domain
+            backend_port = await self._get_container_port(backend_container)
+            if backend_port:
+                api_url = f"http://72.61.158.147:{backend_port}"
+            else:
+                api_url = f"http://72.61.158.147:8001"
+            logger.warning(f"[UPDATE-TEMPLATE] No domain provided, using fallback URL: {api_url}")
         
         results = {
             'frontend_copy': None,
