@@ -1568,22 +1568,22 @@ class PortainerService:
         # CRITICAL: First, read existing config.js to preserve API URL
         existing_api_url = await self._get_existing_config_url(frontend_container)
         
-        if existing_api_url and existing_api_url.startswith("https://"):
-            # PRESERVE existing HTTPS URL - this is the correct one
+        # ALWAYS use HTTPS domain URL if domain exists - this is the PRIMARY rule
+        if domain:
+            api_url = f"https://api.{domain}"
+            logger.info(f"[UPDATE-TEMPLATE] Using HTTPS domain URL (PRIMARY): {api_url}")
+        elif existing_api_url and existing_api_url.startswith("https://"):
+            # Fallback: PRESERVE existing HTTPS URL if no domain
             api_url = existing_api_url
             logger.info(f"[UPDATE-TEMPLATE] PRESERVING existing HTTPS URL: {api_url}")
-        elif domain:
-            # Use domain-based HTTPS URL
-            api_url = f"https://api.{domain}"
-            logger.info(f"[UPDATE-TEMPLATE] Using domain-based HTTPS URL: {api_url}")
         else:
-            # Last resort fallback
+            # Last resort fallback - should never happen for production tenants
             backend_port = await self._get_container_port(backend_container)
             if backend_port:
                 api_url = f"http://72.61.158.147:{backend_port}"
             else:
                 api_url = f"http://72.61.158.147:8001"
-            logger.warning(f"[UPDATE-TEMPLATE] No domain provided, using fallback URL: {api_url}")
+            logger.warning(f"[UPDATE-TEMPLATE] WARNING: No domain, using HTTP fallback: {api_url}")
         
         results = {
             'frontend_copy': None,
