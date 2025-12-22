@@ -1447,16 +1447,36 @@ async def get_portainer_status(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Only SuperAdmin can check Portainer status")
     
     try:
-        stacks = await portainer_service.get_stacks()
+        # Direct test to Portainer API
+        import httpx
+        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+            url = f"{portainer_service.base_url}/api/system/status"
+            response = await client.get(url, headers=portainer_service.headers)
+            
+            if response.status_code == 200:
+                stacks = await portainer_service.get_stacks()
+                return {
+                    "connected": True,
+                    "url": portainer_service.base_url,
+                    "endpoint_id": portainer_service.endpoint_id,
+                    "stack_count": len(stacks) if isinstance(stacks, list) else 0
+                }
+            else:
+                return {
+                    "connected": False,
+                    "url": portainer_service.base_url,
+                    "error": f"HTTP {response.status_code}: {response.text[:200]}"
+                }
+    except httpx.ConnectError as e:
         return {
-            "connected": True,
+            "connected": False,
             "url": portainer_service.base_url,
-            "endpoint_id": portainer_service.endpoint_id,
-            "stack_count": len(stacks) if isinstance(stacks, list) else 0
+            "error": f"Bağlantı hatası: Portainer'a ulaşılamıyor. {str(e)}"
         }
     except Exception as e:
         return {
             "connected": False,
+            "url": portainer_service.base_url,
             "error": str(e)
         }
 
