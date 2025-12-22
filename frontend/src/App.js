@@ -19,6 +19,7 @@ import { GPS } from "./pages/GPS";
 import { HGS } from "./pages/HGS";
 import { Kabis } from "./pages/Kabis";
 import { PriceCalendar } from "./pages/PriceCalendar";
+import { Integrations } from "./pages/Integrations";
 import { Payments } from "./pages/Payments";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
