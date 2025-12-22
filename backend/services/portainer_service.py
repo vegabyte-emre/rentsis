@@ -1521,19 +1521,25 @@ class PortainerService:
         - MongoDB data (customers, vehicles, reservations, etc.)
         - Admin credentials
         - Theme settings stored in DB
-        - config.js API URL (if domain is provided)
+        - config.js API URL (PRESERVED from existing config)
         """
         safe_code = company_code.replace('-', '').replace('_', '')
         frontend_container = f"{safe_code}_frontend"
         backend_container = f"{safe_code}_backend"
         
-        # IMPORTANT: Always use HTTPS domain-based URL if domain is provided
-        # This prevents Mixed Content errors on HTTPS sites
-        if domain:
+        # CRITICAL: First, read existing config.js to preserve API URL
+        existing_api_url = await self._get_existing_config_url(frontend_container)
+        
+        if existing_api_url and existing_api_url.startswith("https://"):
+            # PRESERVE existing HTTPS URL - this is the correct one
+            api_url = existing_api_url
+            logger.info(f"[UPDATE-TEMPLATE] PRESERVING existing HTTPS URL: {api_url}")
+        elif domain:
+            # Use domain-based HTTPS URL
             api_url = f"https://api.{domain}"
             logger.info(f"[UPDATE-TEMPLATE] Using domain-based HTTPS URL: {api_url}")
         else:
-            # Fallback to port-based URL only if no domain
+            # Last resort fallback
             backend_port = await self._get_container_port(backend_container)
             if backend_port:
                 api_url = f"http://72.61.158.147:{backend_port}"
@@ -1548,7 +1554,8 @@ class PortainerService:
             'config_js': None,
             'nginx_config': None,
             'frontend_restart': None,
-            'backend_restart': None
+            'backend_restart': None,
+            'preserved_url': existing_api_url
         }
         
         logger.info(f"[UPDATE-TEMPLATE] Starting template update for {company_code} ({domain})")
