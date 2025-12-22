@@ -32,19 +32,19 @@ const isAdminPanel = window.location.hostname.startsWith('panel.');
 const pathPrefix = isAdminPanel ? '' : '/admin';
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: `${pathPrefix}/dashboard`, roles: ["superadmin", "firma_admin", "operasyon", "muhasebe"] },
-  { icon: Car, label: "Araçlar", path: `${pathPrefix}/vehicles`, roles: ["superadmin", "firma_admin", "operasyon", "personel"] },
-  { icon: CalendarDays, label: "Fiyat Takvimi", path: `${pathPrefix}/price-calendar`, roles: ["superadmin", "firma_admin", "operasyon"] },
-  { icon: Users, label: "Müşteriler", path: `${pathPrefix}/customers`, roles: ["superadmin", "firma_admin", "operasyon"] },
-  { icon: Calendar, label: "Rezervasyonlar", path: `${pathPrefix}/reservations`, roles: ["superadmin", "firma_admin", "operasyon", "personel"] },
-  { icon: MapPin, label: "GPS Takip", path: `${pathPrefix}/gps`, roles: ["superadmin", "firma_admin", "operasyon"] },
-  { icon: Wallet, label: "HGS Takip", path: `${pathPrefix}/hgs`, roles: ["superadmin", "firma_admin", "operasyon"] },
-  { icon: FileCheck, label: "KABİS", path: `${pathPrefix}/kabis`, roles: ["superadmin", "firma_admin", "operasyon"] },
-  { icon: CreditCard, label: "Ödemeler", path: `${pathPrefix}/payments`, roles: ["superadmin", "firma_admin", "muhasebe"] },
-  { icon: FileText, label: "Raporlar", path: `${pathPrefix}/reports`, roles: ["superadmin", "firma_admin", "muhasebe"] },
-  { icon: Palette, label: "Tema Mağazası", path: `${pathPrefix}/theme-store`, roles: ["superadmin", "firma_admin"] },
-  { icon: HelpCircle, label: "Destek", path: `${pathPrefix}/support`, roles: ["superadmin", "firma_admin", "operasyon", "personel", "muhasebe"] },
-  { icon: Settings, label: "Ayarlar", path: `${pathPrefix}/settings`, roles: ["superadmin", "firma_admin"] },
+  { icon: LayoutDashboard, label: "Dashboard", path: `${pathPrefix}/dashboard`, roles: ["firma_admin", "operasyon", "muhasebe"] },
+  { icon: Car, label: "Araçlar", path: `${pathPrefix}/vehicles`, roles: ["firma_admin", "operasyon", "personel"] },
+  { icon: CalendarDays, label: "Fiyat Takvimi", path: `${pathPrefix}/price-calendar`, roles: ["firma_admin", "operasyon"] },
+  { icon: Users, label: "Müşteriler", path: `${pathPrefix}/customers`, roles: ["firma_admin", "operasyon"] },
+  { icon: Calendar, label: "Rezervasyonlar", path: `${pathPrefix}/reservations`, roles: ["firma_admin", "operasyon", "personel"] },
+  { icon: MapPin, label: "GPS Takip", path: `${pathPrefix}/gps`, roles: ["firma_admin", "operasyon"] },
+  { icon: Wallet, label: "HGS Takip", path: `${pathPrefix}/hgs`, roles: ["firma_admin", "operasyon"] },
+  { icon: FileCheck, label: "KABİS", path: `${pathPrefix}/kabis`, roles: ["firma_admin", "operasyon"] },
+  { icon: CreditCard, label: "Ödemeler", path: `${pathPrefix}/payments`, roles: ["firma_admin", "muhasebe"] },
+  { icon: FileText, label: "Raporlar", path: `${pathPrefix}/reports`, roles: ["firma_admin", "muhasebe"] },
+  { icon: Palette, label: "Tema Mağazası", path: `${pathPrefix}/theme-store`, roles: ["firma_admin"] },
+  { icon: HelpCircle, label: "Destek", path: `${pathPrefix}/support`, roles: ["firma_admin", "operasyon", "personel", "muhasebe"] },
+  { icon: Settings, label: "Ayarlar", path: `${pathPrefix}/settings`, roles: ["firma_admin"] },
 ];
 
 export function Sidebar() {
