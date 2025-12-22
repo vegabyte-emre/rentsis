@@ -331,27 +331,29 @@ export function Home() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Alış Lokasyonu</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Alış yeri"
-                      value={pickupLocation}
-                      onChange={(e) => setPickupLocation(e.target.value)}
-                      className="pl-10 h-11"
-                    />
-                  </div>
+                  <select
+                    value={pickupLocation}
+                    onChange={(e) => setPickupLocation(e.target.value)}
+                    className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="">Lokasyon seçin</option>
+                    {locations.filter(l => l.is_pickup).map((loc) => (
+                      <option key={loc.id} value={loc.id}>{loc.name} - {loc.city}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Teslim Lokasyonu</label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Teslim yeri"
-                      value={dropoffLocation}
-                      onChange={(e) => setDropoffLocation(e.target.value)}
-                      className="pl-10 h-11"
-                    />
-                  </div>
+                  <select
+                    value={dropoffLocation}
+                    onChange={(e) => setDropoffLocation(e.target.value)}
+                    className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="">Lokasyon seçin</option>
+                    {locations.filter(l => l.is_dropoff).map((loc) => (
+                      <option key={loc.id} value={loc.id}>{loc.name} - {loc.city}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 hidden lg:block">&nbsp;</label>
