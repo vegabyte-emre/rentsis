@@ -1434,7 +1434,7 @@ async def update_all_companies_from_template(user: dict = Depends(get_current_us
 @api_router.post("/superadmin/template/update-master")
 async def update_master_template(user: dict = Depends(get_current_user)):
     """
-    SuperAdmin: Update master template with latest code from /app/template folder.
+    SuperAdmin: Update master template with latest code from /app/backend/template folder.
     This uses the template files from the repository (synced with GitHub).
     
     Flow: GitHub Push → Save to GitHub → Update Master Template → Update Tenants
@@ -1442,9 +1442,9 @@ async def update_master_template(user: dict = Depends(get_current_user)):
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can update master template")
     
-    logger.info("[MASTER-TEMPLATE] Starting master template update from /app/template...")
+    logger.info("[MASTER-TEMPLATE] Starting master template update from /app/backend/template...")
     
-    template_path = "/app/template"
+    template_path = "/app/backend/template"
     # Use template frontend build, not superadmin frontend
     template_frontend_build = f"{template_path}/frontend/build"
     # Fallback to superadmin build if template build doesn't exist
@@ -1462,7 +1462,7 @@ async def update_master_template(user: dict = Depends(get_current_user)):
         if not os.path.exists(template_path):
             return {
                 "success": False,
-                "error": "Template klasörü bulunamadı. /app/template klasörünü oluşturun."
+                "error": "Template klasörü bulunamadı. /app/backend/template klasörünü oluşturun."
             }
         
         # Step 2: Check template config
@@ -1536,7 +1536,7 @@ async def get_template_info(user: dict = Depends(get_current_user)):
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can view template info")
     
-    template_path = "/app/template"
+    template_path = "/app/backend/template"
     info = {
         "exists": os.path.exists(template_path),
         "frontend": {
