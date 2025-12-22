@@ -1625,22 +1625,24 @@ class PortainerService:
         try:
             import asyncio
             
-            # Step 1: Copy frontend from template
-            logger.info(f"[UPDATE-TEMPLATE] Step 1: Copying frontend code...")
+            # Step 1: Copy frontend from template (EXCLUDE config.js to preserve tenant API URL)
+            logger.info(f"[UPDATE-TEMPLATE] Step 1: Copying frontend code (excluding config.js)...")
             results['frontend_copy'] = await self.copy_from_template(
                 template_container="rentacar_template_frontend",
                 target_container=frontend_container,
                 source_path="/usr/share/nginx/html",
-                dest_path="/usr/share/nginx"
+                dest_path="/usr/share/nginx",
+                exclude_files=["config.js"]
             )
             
-            # Step 2: Copy backend from template
-            logger.info(f"[UPDATE-TEMPLATE] Step 2: Copying backend code...")
+            # Step 2: Copy backend from template (EXCLUDE .env to preserve tenant DB config)
+            logger.info(f"[UPDATE-TEMPLATE] Step 2: Copying backend code (excluding .env)...")
             results['backend_copy'] = await self.copy_from_template(
                 template_container="rentacar_template_backend",
                 target_container=backend_container,
                 source_path="/app",
-                dest_path="/"
+                dest_path="/",
+                exclude_files=[".env"]
             )
             
             # Step 3: Install/Update backend dependencies
