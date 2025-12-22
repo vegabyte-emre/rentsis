@@ -745,20 +745,61 @@ async def mark_all_notifications_read(user: dict = Depends(get_current_user)):
 @app.get("/api/locations")
 async def get_locations(city: Optional[str] = None):
     """Teslim/İade lokasyonları"""
-    query = {}
+    query = {"is_active": True}
     if city:
         query["city"] = city
     
     locations = await db.locations.find(query, {"_id": 0}).to_list(100)
-    
-    if not locations:
-        # Default lokasyonlar
-        return [
-            {"id": "1", "name": "Havalimanı Ofisi", "city": "İstanbul", "address": "İstanbul Havalimanı", "is_active": True},
-            {"id": "2", "name": "Şehir Merkezi", "city": "İstanbul", "address": "Taksim Meydanı", "is_active": True},
-            {"id": "3", "name": "Otogar", "city": "İstanbul", "address": "Büyük İstanbul Otogarı", "is_active": True}
-        ]
     return locations
+
+@app.get("/api/locations/admin")
+async def get_locations_admin(user: dict = Depends(get_current_user)):
+    """Admin: Tüm lokasyonlar"""
+    locations = await db.locations.find({}, {"_id": 0}).to_list(100)
+    return locations
+
+@app.post("/api/locations")
+async def create_location(data: dict, user: dict = Depends(get_current_user)):
+    """Admin: Lokasyon ekle"""
+    if user["role"] not in ["firma_admin", "superadmin"]:
+        raise HTTPException(status_code=403, detail="Yetkiniz yok")
+    
+    location = {
+        "id": str(uuid.uuid4()),
+        "name": data.get("name"),
+        "city": data.get("city"),
+        "address": data.get("address"),
+        "phone": data.get("phone"),
+        "working_hours": data.get("working_hours"),
+        "is_pickup": data.get("is_pickup", True),
+        "is_dropoff": data.get("is_dropoff", True),
+        "is_active": data.get("is_active", True),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.locations.insert_one(location)
+    return {"success": True, "id": location["id"]}
+
+@app.put("/api/locations/{location_id}")
+async def update_location(location_id: str, data: dict, user: dict = Depends(get_current_user)):
+    """Admin: Lokasyon güncelle"""
+    if user["role"] not in ["firma_admin", "superadmin"]:
+        raise HTTPException(status_code=403, detail="Yetkiniz yok")
+    
+    update_data = {k: v for k, v in data.items() if k in ["name", "city", "address", "phone", "working_hours", "is_pickup", "is_dropoff", "is_active"]}
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.locations.update_one({"id": location_id}, {"$set": update_data})
+    return {"success": True}
+
+@app.delete("/api/locations/{location_id}")
+async def delete_location(location_id: str, user: dict = Depends(get_current_user)):
+    """Admin: Lokasyon sil"""
+    if user["role"] not in ["firma_admin", "superadmin"]:
+        raise HTTPException(status_code=403, detail="Yetkiniz yok")
+    
+    await db.locations.delete_one({"id": location_id})
+    return {"success": True}
 
 # ============== CAMPAIGNS (Customer App) ==============
 
