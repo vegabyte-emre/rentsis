@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { MapPin, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
-import { useToast } from "../components/ui/use-toast";
+import { toast } from "sonner";
 import { getApiUrl } from "../config";
 
 export default function Locations() {
@@ -38,8 +38,8 @@ export default function Locations() {
     is_pickup: true,
     is_dropoff: true,
     is_active: true
-  });
-  const { toast } = useToast();
+  );
+  
 
   const API_URL = getApiUrl();
 
@@ -52,7 +52,7 @@ export default function Locations() {
       const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/api/locations/admin`, {
         headers: { Authorization: `Bearer ${token}` }
-      });
+      );
       if (response.ok) {
         const data = await response.json();
         setLocations(data);
@@ -79,19 +79,19 @@ export default function Locations() {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(formData)
-      });
+      );
 
       if (response.ok) {
-        toast({
-          title: "Başarılı",
-          description: editingLocation ? "Lokasyon güncellendi" : "Lokasyon eklendi"
-        });
+        toast.success(
+          
+          editingLocation ? "Lokasyon güncellendi" : "Lokasyon eklendi"
+        );
         setDialogOpen(false);
         resetForm();
         fetchLocations();
       }
     } catch (error) {
-      toast({ title: "Hata", description: "İşlem başarısız", variant: "destructive" });
+      toast.success(  "İşlem başarısız");
     }
   };
 
@@ -103,14 +103,14 @@ export default function Locations() {
       const response = await fetch(`${API_URL}/api/locations/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
-      });
+      );
 
       if (response.ok) {
-        toast({ title: "Başarılı", description: "Lokasyon silindi" });
+        toast.success(  "Lokasyon silindi" );
         fetchLocations();
       }
     } catch (error) {
-      toast({ title: "Hata", description: "Silme başarısız", variant: "destructive" });
+      toast.success(  "Silme başarısız");
     }
   };
 
@@ -125,7 +125,7 @@ export default function Locations() {
       is_pickup: location.is_pickup ?? true,
       is_dropoff: location.is_dropoff ?? true,
       is_active: location.is_active ?? true
-    });
+    );
     setDialogOpen(true);
   };
 
@@ -140,7 +140,7 @@ export default function Locations() {
       is_pickup: true,
       is_dropoff: true,
       is_active: true
-    });
+    );
   };
 
   return (
