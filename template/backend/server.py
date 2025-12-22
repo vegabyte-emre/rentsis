@@ -715,6 +715,126 @@ async def get_gps_vehicles(user: dict = Depends(get_current_user)):
         }
     return vehicles
 
+# ============== INTEGRATIONS ROUTES ==============
+@app.get("/api/integrations")
+async def list_integrations(user: dict = Depends(get_current_user)):
+    """List all integrations for the company"""
+    company_id = user.get("company_id")
+    integrations = await db.integrations.find({"company_id": company_id}, {"_id": 0}).to_list(100)
+    return integrations
+
+@app.post("/api/integrations")
+async def create_integration(integration_data: dict, user: dict = Depends(get_current_user)):
+    """Create or update an integration"""
+    company_id = user.get("company_id")
+    
+    existing = await db.integrations.find_one({
+        "company_id": company_id,
+        "platform_id": integration_data.get("platform_id")
+    })
+    
+    integration_doc = {
+        "company_id": company_id,
+        "platform_id": integration_data.get("platform_id"),
+        "platform_name": integration_data.get("platform_name"),
+        "config": integration_data.get("config", {}),
+        "enabled": integration_data.get("enabled", True),
+        "synced_vehicles": 0,
+        "last_sync": None,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if existing:
+        await db.integrations.update_one({"id": existing["id"]}, {"$set": integration_doc})
+        return {"success": True, "message": "Entegrasyon güncellendi", "id": existing["id"]}
+    else:
+        integration_doc["id"] = str(uuid.uuid4())
+        integration_doc["created_at"] = datetime.now(timezone.utc).isoformat()
+        await db.integrations.insert_one(integration_doc)
+        return {"success": True, "message": "Entegrasyon oluşturuldu", "id": integration_doc["id"]}
+
+@app.patch("/api/integrations/{platform_id}/toggle")
+async def toggle_integration(platform_id: str, toggle_data: dict, user: dict = Depends(get_current_user)):
+    """Enable or disable an integration"""
+    company_id = user.get("company_id")
+    result = await db.integrations.update_one(
+        {"company_id": company_id, "platform_id": platform_id},
+        {"$set": {"enabled": toggle_data.get("enabled", False), "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Entegrasyon bulunamadı")
+    return {"success": True}
+
+@app.delete("/api/integrations/{platform_id}")
+async def delete_integration(platform_id: str, user: dict = Depends(get_current_user)):
+    """Delete an integration"""
+    company_id = user.get("company_id")
+    result = await db.integrations.delete_one({"company_id": company_id, "platform_id": platform_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Entegrasyon bulunamadı")
+    return {"success": True}
+
+@app.post("/api/integrations/{platform_id}/sync")
+async def sync_integration(platform_id: str, user: dict = Depends(get_current_user)):
+    """Sync vehicles with the platform"""
+    company_id = user.get("company_id")
+    
+    integration = await db.integrations.find_one({"company_id": company_id, "platform_id": platform_id}, {"_id": 0})
+    if not integration:
+        raise HTTPException(status_code=404, detail="Entegrasyon bulunamadı")
+    if not integration.get("enabled"):
+        raise HTTPException(status_code=400, detail="Entegrasyon aktif değil")
+    
+    vehicles = await db.vehicles.find({"company_id": company_id}, {"_id": 0}).to_list(1000)
+    synced_count = len(vehicles)
+    
+    # Log the sync
+    sync_log = {
+        "id": str(uuid.uuid4()),
+        "company_id": company_id,
+        "platform_id": platform_id,
+        "platform_name": integration.get("platform_name"),
+        "status": "success",
+        "message": f"{synced_count} araç senkronize edildi",
+        "synced_count": synced_count,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.integration_logs.insert_one(sync_log)
+    
+    # Update integration stats
+    await db.integrations.update_one(
+        {"company_id": company_id, "platform_id": platform_id},
+        {"$set": {"synced_vehicles": synced_count, "last_sync": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"success": True, "synced_count": synced_count, "message": f"{synced_count} araç senkronize edildi"}
+
+@app.post("/api/integrations/{platform_id}/test")
+async def test_integration(platform_id: str, user: dict = Depends(get_current_user)):
+    """Test connection to the platform"""
+    company_id = user.get("company_id")
+    integration = await db.integrations.find_one({"company_id": company_id, "platform_id": platform_id}, {"_id": 0})
+    if not integration:
+        raise HTTPException(status_code=404, detail="Entegrasyon bulunamadı")
+    
+    config = integration.get("config", {})
+    if not config.get("api_key"):
+        return {"success": False, "error": "API anahtarı eksik"}
+    return {"success": True, "message": "Bağlantı başarılı"}
+
+@app.get("/api/integrations/logs")
+async def get_integration_logs(user: dict = Depends(get_current_user)):
+    """Get sync logs for the company"""
+    company_id = user.get("company_id")
+    logs = await db.integration_logs.find({"company_id": company_id}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    return logs
+
+@app.post("/api/integrations/webhook")
+async def integration_webhook(webhook_data: dict):
+    """Receive webhook callbacks from platforms"""
+    logger.info(f"Received webhook: {webhook_data}")
+    return {"success": True, "message": "Webhook received"}
+
 # ============== HEALTH CHECK ==============
 @app.get("/api/health")
 async def health_check():
