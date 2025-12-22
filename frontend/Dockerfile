@@ -1,5 +1,5 @@
 # Frontend Dockerfile
-FROM node:18-alpine as build
+FROM node:18 as build
 
 WORKDIR /app
 
@@ -13,14 +13,13 @@ ENV DISABLE_ESLINT_PLUGIN=true
 COPY package.json ./
 
 # Install ALL dependencies
-ENV NODE_ENV=development
 RUN npm install --legacy-peer-deps
 
 # Copy all source files
 COPY . .
 
-# Build using npx craco directly
-RUN npx craco build
+# Build the app
+RUN npm run build
 
 # Production stage - serve with nginx
 FROM nginx:alpine
