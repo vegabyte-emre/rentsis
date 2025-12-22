@@ -1434,80 +1434,70 @@ async def update_all_companies_from_template(user: dict = Depends(get_current_us
 @api_router.post("/superadmin/template/update-master")
 async def update_master_template(user: dict = Depends(get_current_user)):
     """
-    SuperAdmin: Update master template with latest code from /app/backend/template folder.
-    This uses the template files from the repository (synced with GitHub).
-    
-    Flow: GitHub Push → Save to GitHub → Update Master Template → Update Tenants
+    SuperAdmin: Update master template - checks Portainer template container status.
+    Template container is updated via development environment, not production.
     """
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can update master template")
     
-    logger.info("[MASTER-TEMPLATE] Starting master template update from /app/backend/template...")
-    
-    template_path = "/app/backend/template"
-    # Use template frontend build, not superadmin frontend
-    template_frontend_build = f"{template_path}/frontend/build"
-    # Fallback to superadmin build if template build doesn't exist
-    frontend_build_path = template_frontend_build if os.path.exists(template_frontend_build) else "/app/frontend/build"
+    logger.info("[MASTER-TEMPLATE] Checking template container status...")
     
     try:
-        results = {
-            "template_files": False,
-            "frontend_build": False,
-            "backend_code": False,
-            "config": False
-        }
+        # Check if template containers exist in Portainer
+        containers = await portainer_service.get_containers()
         
-        # Step 1: Check if template folder exists
-        if not os.path.exists(template_path):
+        template_frontend = None
+        template_backend = None
+        
+        for c in containers:
+            names = c.get('names', [])
+            for name in names:
+                if 'rentacar_template_frontend' in name:
+                    template_frontend = c
+                elif 'rentacar_template_backend' in name:
+                    template_backend = c
+        
+        if not template_frontend or not template_backend:
             return {
                 "success": False,
-                "error": "Template klasörü bulunamadı. /app/backend/template klasörünü oluşturun."
+                "error": "Template container'ları Portainer'da bulunamadı. Önce template stack'i oluşturun."
             }
         
-        # Step 2: Check template config
-        config_path = f"{template_path}/config/template.json"
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                template_config = json.load(f)
-                results["config"] = True
-                logger.info(f"[MASTER-TEMPLATE] Template version: {template_config.get('version')}")
+        results = {
+            "template_frontend": {
+                "status": template_frontend.get('state'),
+                "container": template_frontend.get('names', [])[0] if template_frontend.get('names') else None
+            },
+            "template_backend": {
+                "status": template_backend.get('state'),
+                "container": template_backend.get('names', [])[0] if template_backend.get('names') else None
+            }
+        }
         
-        # Step 3: Check frontend build
-        if os.path.exists(frontend_build_path):
-            results["frontend_build"] = True
-            logger.info(f"[MASTER-TEMPLATE] Frontend build found at {frontend_build_path}")
-        else:
-            # Try to build from template
-            template_frontend_path = f"{template_path}/frontend"
-            if os.path.exists(template_frontend_path):
-                logger.info("[MASTER-TEMPLATE] Template frontend source found")
-                results["template_files"] = True
-        
-        # Step 4: Check backend code
-        template_backend_path = f"{template_path}/backend/server.py"
-        if os.path.exists(template_backend_path):
-            results["backend_code"] = True
-            logger.info("[MASTER-TEMPLATE] Template backend found")
-        
-        # Step 5: Update master template container (if exists in Portainer)
-        try:
-            update_result = await portainer_service.update_master_template_from_local(
-                frontend_build_path=frontend_build_path,
-                backend_path=f"{template_path}/backend"
-            )
-            
-            if update_result.get("success"):
-                results["portainer_update"] = update_result.get("results", {})
-        except Exception as e:
-            logger.warning(f"[MASTER-TEMPLATE] Portainer update skipped: {str(e)}")
-            results["portainer_update"] = "skipped"
-        
-        # Step 6: Update template status in database
+        # Update template status in database
         await db.system_settings.update_one(
             {"key": "master_template"},
             {"$set": {
                 "last_updated": datetime.now(timezone.utc).isoformat(),
+                "updated_by": user["email"],
+                "status": "active"
+            }},
+            upsert=True
+        )
+        
+        return {
+            "success": True,
+            "message": "Template container'ları aktif ve hazır",
+            "results": results,
+            "note": "Firmalar bu template'den güncellenebilir."
+        }
+    
+    except Exception as e:
+        logger.error(f"[MASTER-TEMPLATE] Error: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
                 "updated_by": user["email"],
                 "status": "active",
                 "version": template_config.get("version", "1.0.0") if results["config"] else "1.0.0",
