@@ -1087,7 +1087,7 @@ class PortainerService:
         
         return {'error': 'Failed to create exec', 'details': result}
 
-    async def full_tenant_deployment(self, company_code: str, domain: str, admin_email: str, admin_password: str, mongo_port: int) -> Dict[str, Any]:
+    async def full_tenant_deployment(self, company_code: str, domain: str, admin_email: str, admin_password: str, mongo_port: int, backend_port: int = None) -> Dict[str, Any]:
         """
         Complete tenant deployment after stack creation:
         1. Copy frontend from template
@@ -1103,7 +1103,12 @@ class PortainerService:
         frontend_container = f"{safe_code}_frontend"
         backend_container = f"{safe_code}_backend"
         db_name = f"{safe_code}_db"
-        api_url = f"https://api.{domain}"
+        
+        # Use IP-based URL for API (domain DNS may not be configured)
+        if backend_port:
+            api_url = f"http://{SERVER_IP}:{backend_port}"
+        else:
+            api_url = f"https://api.{domain}"
         
         results = {
             'frontend_copy': None,
