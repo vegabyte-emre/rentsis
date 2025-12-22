@@ -6,6 +6,8 @@ Handles automatic deployment of company stacks to Portainer
 import os
 import httpx
 import logging
+import tarfile
+import io as std_io
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 
