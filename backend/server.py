@@ -2387,29 +2387,431 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         pending_returns=pending_returns
     )
 
-# ============== GPS MOCK ROUTES ==============
+# ============== GPS / ARVENTO ROUTES ==============
 @api_router.get("/gps/vehicles")
 async def get_vehicle_locations(user: dict = Depends(get_current_user)):
-    """Mock GPS data for vehicles"""
-    query = {"status": VehicleStatus.RENTED.value}
-    if user["role"] != UserRole.SUPERADMIN.value:
-        query["company_id"] = user.get("company_id")
+    """Get vehicle GPS locations - Arvento integration or mock data"""
+    # Get company GPS settings
+    company_id = user.get("company_id")
+    gps_settings = await db.integration_settings.find_one(
+        {"company_id": company_id, "type": "arvento"},
+        {"_id": 0}
+    )
     
-    vehicles = await db.vehicles.find(query, {"_id": 0}).to_list(100)
+    # Create Arvento service with company settings
+    if gps_settings and gps_settings.get("is_active"):
+        arvento = ArventoService(
+            api_key=gps_settings.get("api_key"),
+            company_code=gps_settings.get("company_code"),
+            api_url=gps_settings.get("api_url")
+        )
+    else:
+        arvento = ArventoService()  # Will use mock data
     
-    # Mock GPS coordinates (Istanbul area)
-    import random
-    locations = []
-    for v in vehicles:
-        locations.append({
-            "vehicle_id": v["id"],
-            "plate": v["plate"],
-            "lat": 41.0082 + random.uniform(-0.1, 0.1),
-            "lng": 28.9784 + random.uniform(-0.1, 0.1),
-            "speed": random.randint(0, 120),
-            "last_update": datetime.now(timezone.utc).isoformat()
-        })
-    return locations
+    result = await arvento.get_all_vehicles()
+    
+    # If mock, enhance with actual vehicle data
+    if result.get("source") == "mock":
+        query = {"status": VehicleStatus.RENTED.value}
+        if user["role"] != UserRole.SUPERADMIN.value:
+            query["company_id"] = company_id
+        
+        vehicles = await db.vehicles.find(query, {"_id": 0}).to_list(100)
+        
+        import random
+        locations = []
+        for v in vehicles:
+            locations.append({
+                "vehicle_id": v["id"],
+                "plate": v["plate"],
+                "lat": 41.0082 + random.uniform(-0.1, 0.1),
+                "lng": 28.9784 + random.uniform(-0.1, 0.1),
+                "speed": random.randint(0, 120),
+                "heading": random.randint(0, 360),
+                "ignition": random.choice([True, False]),
+                "last_update": datetime.now(timezone.utc).isoformat(),
+                "address": random.choice(["Taksim", "Kadikoy", "Besiktas", "Uskudar"]) + ", Istanbul",
+                "source": "mock"
+            })
+        return locations
+    
+    return result.get("vehicles", [])
+
+@api_router.get("/gps/vehicle/{vehicle_id}/history")
+async def get_vehicle_history(
+    vehicle_id: str,
+    start_date: str = None,
+    end_date: str = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get vehicle route history"""
+    vehicle = await db.vehicles.find_one({"id": vehicle_id})
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    
+    # Mock history data for now
+    return {
+        "vehicle_id": vehicle_id,
+        "plate": vehicle.get("plate"),
+        "history": [],
+        "message": "Rota gecmisi icin Arvento API yapilandirilmali"
+    }
+
+@api_router.get("/gps/settings")
+async def get_gps_settings(user: dict = Depends(get_current_user)):
+    """Get GPS integration settings"""
+    company_id = user.get("company_id")
+    settings = await db.integration_settings.find_one(
+        {"company_id": company_id, "type": "arvento"},
+        {"_id": 0}
+    )
+    
+    if settings:
+        # Don't expose API key
+        settings["api_key"] = "***" if settings.get("api_key") else None
+    
+    return {
+        "configured": bool(settings and settings.get("is_active")),
+        "provider": "Arvento",
+        "settings": settings
+    }
+
+@api_router.post("/gps/settings")
+async def update_gps_settings(
+    settings: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update GPS integration settings"""
+    if user["role"] not in [UserRole.SUPERADMIN.value, UserRole.FIRMA_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    company_id = user.get("company_id")
+    now = datetime.now(timezone.utc).isoformat()
+    
+    settings_doc = {
+        "company_id": company_id,
+        "type": "arvento",
+        "api_key": settings.get("api_key"),
+        "company_code": settings.get("company_code"),
+        "api_url": settings.get("api_url", "https://api.arvento.com/v1"),
+        "is_active": settings.get("is_active", True),
+        "updated_at": now
+    }
+    
+    await db.integration_settings.update_one(
+        {"company_id": company_id, "type": "arvento"},
+        {"$set": settings_doc},
+        upsert=True
+    )
+    
+    return {"success": True, "message": "GPS ayarlari guncellendi"}
+
+@api_router.post("/gps/test-connection")
+async def test_gps_connection(user: dict = Depends(get_current_user)):
+    """Test Arvento GPS connection"""
+    company_id = user.get("company_id")
+    settings = await db.integration_settings.find_one(
+        {"company_id": company_id, "type": "arvento"}
+    )
+    
+    if not settings:
+        return {"success": False, "message": "GPS ayarlari yapilandirilmamis"}
+    
+    arvento = ArventoService(
+        api_key=settings.get("api_key"),
+        company_code=settings.get("company_code"),
+        api_url=settings.get("api_url")
+    )
+    
+    result = await arvento.test_connection()
+    return result
+
+# ============== HGS ROUTES ==============
+@api_router.get("/hgs/summary")
+async def get_hgs_summary(user: dict = Depends(get_current_user)):
+    """Get HGS summary statistics"""
+    hgs_service.set_db(db)
+    company_id = user.get("company_id")
+    summary = await hgs_service.get_summary(company_id)
+    return summary
+
+@api_router.get("/hgs/tags")
+async def get_hgs_tags(user: dict = Depends(get_current_user)):
+    """Get all HGS tags"""
+    hgs_service.set_db(db)
+    company_id = user.get("company_id")
+    tags = await hgs_service.get_all_tags(company_id)
+    return tags
+
+@api_router.post("/hgs/tags")
+async def add_hgs_tag(tag_data: dict, user: dict = Depends(get_current_user)):
+    """Add HGS tag to vehicle"""
+    if user["role"] not in [UserRole.SUPERADMIN.value, UserRole.FIRMA_ADMIN.value, UserRole.OPERASYON.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    hgs_service.set_db(db)
+    result = await hgs_service.add_hgs_tag(tag_data.get("vehicle_id"), tag_data)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    
+    return result
+
+@api_router.get("/hgs/vehicle/{vehicle_id}")
+async def get_vehicle_hgs(vehicle_id: str, user: dict = Depends(get_current_user)):
+    """Get HGS info for a vehicle"""
+    hgs_service.set_db(db)
+    result = await hgs_service.get_vehicle_hgs(vehicle_id)
+    return result
+
+@api_router.put("/hgs/tags/{tag_id}/balance")
+async def update_hgs_balance(
+    tag_id: str,
+    balance_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update HGS tag balance"""
+    hgs_service.set_db(db)
+    result = await hgs_service.update_balance(
+        tag_id,
+        balance_data.get("balance", 0),
+        balance_data.get("note", "")
+    )
+    return result
+
+@api_router.post("/hgs/tags/{tag_id}/passages")
+async def add_hgs_passage(
+    tag_id: str,
+    passage_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Add HGS passage record"""
+    hgs_service.set_db(db)
+    result = await hgs_service.add_passage(tag_id, passage_data)
+    return result
+
+@api_router.get("/hgs/passages")
+async def get_hgs_passages(
+    tag_id: str = None,
+    vehicle_id: str = None,
+    start_date: str = None,
+    end_date: str = None,
+    limit: int = 100,
+    user: dict = Depends(get_current_user)
+):
+    """Get HGS passage records"""
+    hgs_service.set_db(db)
+    passages = await hgs_service.get_passages(tag_id, vehicle_id, start_date, end_date, limit)
+    return passages
+
+@api_router.delete("/hgs/tags/{tag_id}")
+async def delete_hgs_tag(tag_id: str, user: dict = Depends(get_current_user)):
+    """Delete HGS tag"""
+    if user["role"] not in [UserRole.SUPERADMIN.value, UserRole.FIRMA_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    hgs_service.set_db(db)
+    result = await hgs_service.delete_tag(tag_id)
+    return result
+
+# ============== KABIS ROUTES ==============
+@api_router.get("/kabis/info")
+async def get_kabis_info():
+    """Get KABIS setup information"""
+    return KabisService.get_setup_info()
+
+@api_router.get("/kabis/settings")
+async def get_kabis_settings(user: dict = Depends(get_current_user)):
+    """Get KABIS integration settings"""
+    company_id = user.get("company_id")
+    settings = await db.integration_settings.find_one(
+        {"company_id": company_id, "type": "kabis"},
+        {"_id": 0}
+    )
+    
+    if settings:
+        settings["api_key"] = "***" if settings.get("api_key") else None
+    
+    return {
+        "configured": bool(settings and settings.get("is_active")),
+        "settings": settings,
+        "setup_info": KabisService.get_setup_info()
+    }
+
+@api_router.post("/kabis/settings")
+async def update_kabis_settings(
+    settings: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update KABIS integration settings"""
+    if user["role"] not in [UserRole.SUPERADMIN.value, UserRole.FIRMA_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    company_id = user.get("company_id")
+    now = datetime.now(timezone.utc).isoformat()
+    
+    settings_doc = {
+        "company_id": company_id,
+        "type": "kabis",
+        "api_key": settings.get("api_key"),
+        "firma_kodu": settings.get("firma_kodu"),
+        "api_url": settings.get("api_url", "https://api.kabis.uab.gov.tr/v1"),
+        "is_active": settings.get("is_active", True),
+        "updated_at": now
+    }
+    
+    await db.integration_settings.update_one(
+        {"company_id": company_id, "type": "kabis"},
+        {"$set": settings_doc},
+        upsert=True
+    )
+    
+    return {"success": True, "message": "KABIS ayarlari guncellendi"}
+
+@api_router.post("/kabis/notifications")
+async def create_kabis_notification(
+    rental_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Create KABIS rental notification"""
+    company_id = user.get("company_id")
+    
+    # Get company KABIS settings
+    settings = await db.integration_settings.find_one(
+        {"company_id": company_id, "type": "kabis"}
+    )
+    
+    if settings and settings.get("is_active"):
+        kabis = KabisService(
+            api_key=settings.get("api_key"),
+            firma_kodu=settings.get("firma_kodu"),
+            api_url=settings.get("api_url")
+        )
+    else:
+        kabis = KabisService()
+    
+    result = await kabis.create_rental_notification(rental_data)
+    
+    # Save notification to DB
+    if result.get("success"):
+        notification_doc = {
+            "id": result.get("notification_id"),
+            "company_id": company_id,
+            "rental_data": rental_data,
+            "status": result.get("status"),
+            "source": result.get("source"),
+            "created_at": result.get("created_at"),
+            "created_by": user.get("id")
+        }
+        await db.kabis_notifications.insert_one(notification_doc)
+    
+    return result
+
+@api_router.get("/kabis/notifications")
+async def get_kabis_notifications(
+    limit: int = 100,
+    user: dict = Depends(get_current_user)
+):
+    """Get KABIS notifications list"""
+    company_id = user.get("company_id")
+    
+    notifications = await db.kabis_notifications.find(
+        {"company_id": company_id},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+    
+    return notifications
+
+@api_router.delete("/kabis/notifications/{notification_id}")
+async def cancel_kabis_notification(
+    notification_id: str,
+    reason: str = "",
+    user: dict = Depends(get_current_user)
+):
+    """Cancel KABIS notification"""
+    company_id = user.get("company_id")
+    
+    settings = await db.integration_settings.find_one(
+        {"company_id": company_id, "type": "kabis"}
+    )
+    
+    kabis = KabisService(
+        api_key=settings.get("api_key") if settings else None,
+        firma_kodu=settings.get("firma_kodu") if settings else None
+    )
+    
+    result = await kabis.cancel_notification(notification_id, reason)
+    
+    if result.get("success"):
+        await db.kabis_notifications.update_one(
+            {"id": notification_id},
+            {"$set": {"status": "cancelled", "cancel_reason": reason}}
+        )
+    
+    return result
+
+# ============== WHATSAPP ROUTES ==============
+@api_router.get("/whatsapp/link")
+async def get_whatsapp_link(
+    phone: str,
+    message: str = "",
+    user: dict = Depends(get_current_user)
+):
+    """Generate WhatsApp Web link for a phone number"""
+    # Clean phone number
+    clean_phone = phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if clean_phone.startswith("0"):
+        clean_phone = "90" + clean_phone[1:]
+    elif not clean_phone.startswith("90") and not clean_phone.startswith("+90"):
+        clean_phone = "90" + clean_phone
+    clean_phone = clean_phone.replace("+", "")
+    
+    # URL encode message
+    from urllib.parse import quote
+    encoded_message = quote(message) if message else ""
+    
+    whatsapp_url = f"https://wa.me/{clean_phone}"
+    if encoded_message:
+        whatsapp_url += f"?text={encoded_message}"
+    
+    return {
+        "phone": phone,
+        "clean_phone": clean_phone,
+        "whatsapp_url": whatsapp_url,
+        "message": message
+    }
+
+@api_router.get("/whatsapp/templates")
+async def get_whatsapp_templates(user: dict = Depends(get_current_user)):
+    """Get WhatsApp message templates"""
+    templates = [
+        {
+            "id": "reservation_confirm",
+            "name": "Rezervasyon Onay",
+            "message": "Merhaba {customer_name}, {plate} plakali arac icin {start_date} - {end_date} tarihleri arasindaki rezervasyonunuz onaylanmistir. Iyi yolculuklar dileriz!"
+        },
+        {
+            "id": "reservation_reminder",
+            "name": "Rezervasyon Hatirlatma",
+            "message": "Merhaba {customer_name}, {start_date} tarihindeki arac teslim alim randevunuzu hatirlatmak isteriz. Adres: {pickup_location}"
+        },
+        {
+            "id": "return_reminder",
+            "name": "Iade Hatirlatma",
+            "message": "Merhaba {customer_name}, {plate} plakali aracin iade tarihi {end_date} olarak belirlenmistir. Luetfen belirtilen tarihte araci iade ediniz."
+        },
+        {
+            "id": "payment_reminder",
+            "name": "Odeme Hatirlatma",
+            "message": "Merhaba {customer_name}, {amount} TL tutarindaki odemeniz beklemektedir. Lutfen en kisa surede odeme yapiniz."
+        },
+        {
+            "id": "welcome",
+            "name": "Hosgeldiniz",
+            "message": "Merhaba {customer_name}, {company_name} ailesine hosgeldiniz! Size en iyi hizmeti sunmak icin buradayiz."
+        }
+    ]
+    return templates
 
 # ============== AUDIT LOG ==============
 @api_router.get("/audit-logs")
