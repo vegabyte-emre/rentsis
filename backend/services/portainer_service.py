@@ -1813,16 +1813,18 @@ async def get():
     print(json.dumps(tickets, default=str))
 
 asyncio.run(get())
-" 2>/dev/null'''
+"'''
             
             result = await self.exec_in_container(backend_container, cmd)
             if result.get("success"):
                 output = result.get("output", {}).get("text", "[]")
-                output = output.replace("\x01", "").strip()
-                lines = [l for l in output.split("\n") if l.strip().startswith("[")]
-                if lines:
+                # Clean control characters and find JSON array
+                output = output.replace("\x01", " ").strip()
+                import re
+                match = re.search(r'\[.*\]', output, re.DOTALL)
+                if match:
                     import json
-                    return json.loads(lines[0])
+                    return json.loads(match.group())
             return []
         except Exception as e:
             logger.warning(f"Error getting tickets from {company_code}: {e}")
