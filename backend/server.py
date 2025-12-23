@@ -4348,8 +4348,37 @@ async def get_all_tickets(user: dict = Depends(get_current_user)):
     if user["role"] != UserRole.SUPERADMIN.value:
         raise HTTPException(status_code=403, detail="Only SuperAdmin can view all tickets")
     
-    tickets = await db.support_tickets.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    return tickets
+    all_tickets = []
+    
+    # Get local tickets
+    local_tickets = await db.support_tickets.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    all_tickets.extend(local_tickets)
+    
+    # Get tickets from all tenant databases
+    try:
+        companies = await db.companies.find({"is_active": True}, {"_id": 0}).to_list(100)
+        for company in companies:
+            try:
+                company_code = company.get("code", "").lower().replace(" ", "").replace("-", "")
+                if not company_code:
+                    continue
+                    
+                # Connect to tenant's MongoDB via Portainer
+                tenant_tickets = await portainer_service.get_tenant_support_tickets(company_code)
+                for ticket in tenant_tickets:
+                    ticket["company_name"] = company.get("name", company_code)
+                    ticket["company_code"] = company_code
+                    ticket["source"] = "tenant_db"
+                    all_tickets.append(ticket)
+            except Exception as e:
+                logger.warning(f"Could not fetch tickets from {company.get('name')}: {e}")
+    except Exception as e:
+        logger.error(f"Error fetching tenant tickets: {e}")
+    
+    # Sort by created_at
+    all_tickets.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    return all_tickets
 
 # Tenant: Get my tickets
 @api_router.get("/support/tickets")
