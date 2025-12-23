@@ -1798,3 +1798,36 @@ class PortainerService:
 
 # Singleton instance
 portainer_service = PortainerService()
+
+    async def get_tenant_support_tickets(self, company_code: str) -> list:
+        """Get support tickets from tenant's database via container exec"""
+        try:
+            backend_container = f"{company_code}_backend"
+            
+            cmd = '''python3 -c "
+from motor.motor_asyncio import AsyncIOMotorClient
+import asyncio, json, os
+
+async def get_tickets():
+    mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+    db_name = os.environ.get('DB_NAME', 'tenant_db')
+    c = AsyncIOMotorClient(mongo_url)
+    db = c[db_name]
+    tickets = await db.support_tickets.find({}, {'_id': 0}).sort('created_at', -1).to_list(50)
+    print(json.dumps(tickets, default=str))
+
+asyncio.run(get_tickets())
+" 2>/dev/null'''
+            
+            result = await self.exec_in_container(backend_container, cmd)
+            if result.get("success"):
+                output = result.get("output", {}).get("text", "[]")
+                # Clean output
+                output = output.replace("\x01", "").strip()
+                if output.startswith("["):
+                    import json
+                    return json.loads(output)
+            return []
+        except Exception as e:
+            logger.warning(f"Error getting tickets from {company_code}: {e}")
+            return []
