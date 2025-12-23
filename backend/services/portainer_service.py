@@ -1799,14 +1799,26 @@ class PortainerService:
         """Get support tickets from tenant's database via container exec"""
         try:
             backend_container = f"{company_code}_backend"
+            mongo_container = f"{company_code}_mongodb"
             
-            cmd = 'python3 -c "from motor.motor_asyncio import AsyncIOMotorClient; import asyncio, json, os; c=AsyncIOMotorClient(os.environ.get(\'MONGO_URL\',\'mongodb://localhost:27017\')); db=c[os.environ.get(\'DB_NAME\',\'tenant_db\')]; tickets=asyncio.get_event_loop().run_until_complete(db.support_tickets.find({},{\'_id\':0}).to_list(50)); print(json.dumps(tickets,default=str))" 2>/dev/null'
+            cmd = '''python3 -c "
+from motor.motor_asyncio import AsyncIOMotorClient
+import asyncio, json
+
+async def get():
+    c = AsyncIOMotorClient('mongodb://''' + mongo_container + ''':27017')
+    db = c['''' + company_code + '''_db']
+    tickets = await db.support_tickets.find({}, {'_id': 0}).to_list(50)
+    print(json.dumps(tickets, default=str))
+
+asyncio.run(get())
+" 2>/dev/null'''
             
             result = await self.exec_in_container(backend_container, cmd)
             if result.get("success"):
                 output = result.get("output", {}).get("text", "[]")
                 output = output.replace("\x01", "").strip()
-                lines = [l for l in output.split("\n") if l.startswith("[")]
+                lines = [l for l in output.split("\n") if l.strip().startswith("[")]
                 if lines:
                     import json
                     return json.loads(lines[0])
