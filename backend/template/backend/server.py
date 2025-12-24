@@ -1545,9 +1545,10 @@ async def get_support_ticket(ticket_id: str, user: dict = Depends(get_current_us
 
 # ============== MOBILE APP BUILD (Expo EAS) ==============
 
-EXPO_TOKEN = os.environ.get("EXPO_TOKEN", "")
-EXPO_CUSTOMER_APP_ID = os.environ.get("EXPO_CUSTOMER_APP_ID", "@vegabyte/vega-rent-c-app")
-EXPO_OPERATION_APP_ID = os.environ.get("EXPO_OPERATION_APP_ID", "@vegabyte/vega-rent-o-app")
+EXPO_TOKEN = os.environ.get("EXPO_TOKEN", "vIg74dANrrkDXdDtOl6jSOmGRkKld9EKBhBxfKM3")
+# Expo Project IDs (UUID format)
+EXPO_CUSTOMER_PROJECT_ID = os.environ.get("EXPO_CUSTOMER_PROJECT_ID", "11d08a0d-b759-4489-9e3f-fca7161a7029")
+EXPO_OPERATION_PROJECT_ID = os.environ.get("EXPO_OPERATION_PROJECT_ID", "af4db31d-9d07-4872-9649-6743df13ba1e")
 
 class MobileBuildRequest(BaseModel):
     app_type: str  # "customer" or "operation"
@@ -1563,12 +1564,9 @@ async def get_mobile_builds(user: dict = Depends(get_current_user)):
 
 @app.post("/api/mobile/build")
 async def start_mobile_build(data: MobileBuildRequest, user: dict = Depends(get_current_user)):
-    """Start a new mobile app build via Expo EAS"""
+    """Request a mobile app build - creates build config for EAS"""
     if user["role"] != "firma_admin":
         raise HTTPException(status_code=403, detail="Yetkiniz yok")
-    
-    if not EXPO_TOKEN:
-        raise HTTPException(status_code=500, detail="Expo token yapılandırılmamış")
     
     # Get company info for customization
     company = await db.company.find_one({}, {"_id": 0})
@@ -1578,89 +1576,117 @@ async def start_mobile_build(data: MobileBuildRequest, user: dict = Depends(get_
     
     # Determine which app to build
     if data.app_type == "customer":
-        project_id = EXPO_CUSTOMER_APP_ID
+        project_id = EXPO_CUSTOMER_PROJECT_ID
         app_name = f"{company_name}"
+        dashboard_url = "https://expo.dev/accounts/vegabyte/projects/vega-rent-c-app/builds"
     else:
-        project_id = EXPO_OPERATION_APP_ID
+        project_id = EXPO_OPERATION_PROJECT_ID
         app_name = f"{company_name} Operasyon"
+        dashboard_url = "https://expo.dev/accounts/vegabyte/projects/vega-rent-o-app/builds"
     
+    build_id = str(uuid.uuid4())
+    
+    # Create build request record with tenant config
+    build_record = {
+        "id": build_id,
+        "app_type": data.app_type,
+        "status": "pending",
+        "project_id": project_id,
+        "company_name": company_name,
+        "company_code": company_code,
+        "api_url": api_url,
+        "app_name": app_name,
+        "created_by": user["id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "download_url": None,
+        "expo_dashboard": dashboard_url,
+        "build_config": {
+            "APP_NAME": app_name,
+            "API_URL": api_url,
+            "COMPANY_CODE": company_code,
+            "COMPANY_NAME": company_name
+        }
+    }
+    await db.mobile_builds.insert_one(build_record)
+    
+    # Try to trigger build via Expo GraphQL API
     import httpx
     
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            # Start EAS Build
+            # Use Expo's GraphQL API to trigger build
+            graphql_query = """
+            mutation CreateAndroidBuild($appId: ID!, $job: AndroidJobInput!) {
+                android {
+                    build(appId: $appId, job: $job) {
+                        builds {
+                            id
+                            status
+                        }
+                    }
+                }
+            }
+            """
+            
             response = await client.post(
-                "https://api.expo.dev/v2/eas/builds",
+                "https://api.expo.dev/graphql",
                 headers={
                     "Authorization": f"Bearer {EXPO_TOKEN}",
                     "Content-Type": "application/json"
                 },
                 json={
-                    "projectId": project_id,
-                    "platform": "android",
-                    "profile": "production",
-                    "environment": {
-                        "APP_NAME": app_name,
-                        "API_URL": api_url,
-                        "COMPANY_CODE": company_code,
-                        "COMPANY_NAME": company_name
+                    "query": graphql_query,
+                    "variables": {
+                        "appId": project_id,
+                        "job": {
+                            "type": "generic",
+                            "platform": "android",
+                            "projectArchive": None
+                        }
                     }
                 }
             )
             
-            if response.status_code not in [200, 201, 202]:
-                logger.error(f"Expo API error: {response.text}")
-                # Fallback: Try simpler approach
-                return await start_build_simple(data.app_type, company_name, api_url, company_code)
-            
-            result = response.json()
-            build_id = result.get("id") or result.get("buildId") or str(uuid.uuid4())
-            
-            # Save build record
-            build_record = {
-                "id": build_id,
-                "app_type": data.app_type,
-                "status": "building",
-                "project_id": project_id,
-                "company_name": company_name,
-                "created_by": user["id"],
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "download_url": None
-            }
-            await db.mobile_builds.insert_one(build_record)
-            
-            return {"success": True, "build_id": build_id, "message": "Build başlatıldı"}
-            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get("data", {}).get("android", {}).get("build", {}).get("builds"):
+                    expo_build_id = result["data"]["android"]["build"]["builds"][0]["id"]
+                    await db.mobile_builds.update_one(
+                        {"id": build_id},
+                        {"$set": {"expo_build_id": expo_build_id, "status": "building"}}
+                    )
+                    return {
+                        "success": True,
+                        "build_id": build_id,
+                        "expo_build_id": expo_build_id,
+                        "message": "Build başlatıldı! Expo Dashboard'dan takip edebilirsiniz.",
+                        "expo_dashboard": dashboard_url
+                    }
     except Exception as e:
-        logger.error(f"Expo build error: {e}")
-        return await start_build_simple(data.app_type, company_name, api_url, company_code)
-
-async def start_build_simple(app_type: str, company_name: str, api_url: str, company_code: str):
-    """Fallback: Start build using EAS CLI approach"""
-    build_id = str(uuid.uuid4())
+        logger.warning(f"Expo API call failed: {e}")
     
-    build_record = {
-        "id": build_id,
-        "app_type": app_type,
-        "status": "building",
-        "company_name": company_name,
-        "api_url": api_url,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "download_url": None,
-        "note": "Build EAS üzerinden başlatılıyor. Expo Dashboard'dan takip edebilirsiniz."
-    }
-    await db.mobile_builds.insert_one(build_record)
-    
+    # Return with manual instructions
     return {
-        "success": True, 
-        "build_id": build_id, 
-        "message": "Build kaydı oluşturuldu. Expo Dashboard'dan manuel build başlatın.",
-        "expo_dashboard": f"https://expo.dev/accounts/vegabyte/projects/vega-rent-{'c' if app_type == 'customer' else 'o'}-app/builds"
+        "success": True,
+        "build_id": build_id,
+        "message": f"Build talebi oluşturuldu. APK için Expo Dashboard'dan build başlatın.",
+        "expo_dashboard": dashboard_url,
+        "build_config": build_record["build_config"],
+        "instructions": [
+            f"1. {dashboard_url} adresine gidin",
+            "2. 'Build' butonuna tıklayın",
+            "3. Platform: Android seçin",
+            "4. Profile: production seçin",
+            f"5. Environment Variables'a şunları ekleyin:",
+            f"   APP_NAME={app_name}",
+            f"   API_URL={api_url}",
+            f"   COMPANY_CODE={company_code}"
+        ]
     }
 
 @app.get("/api/mobile/build/{build_id}/status")
 async def get_build_status(build_id: str, user: dict = Depends(get_current_user)):
-    """Get build status from Expo"""
+    """Get build status"""
     build = await db.mobile_builds.find_one({"id": build_id}, {"_id": 0})
     if not build:
         raise HTTPException(status_code=404, detail="Build bulunamadı")
@@ -1669,37 +1695,126 @@ async def get_build_status(build_id: str, user: dict = Depends(get_current_user)
     if build.get("status") in ["finished", "errored"]:
         return build
     
-    # Try to get status from Expo API
-    if EXPO_TOKEN:
+    # Try to get status from Expo API if we have expo_build_id
+    expo_build_id = build.get("expo_build_id")
+    if EXPO_TOKEN and expo_build_id:
         import httpx
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
-                    f"https://api.expo.dev/v2/eas/builds/{build_id}",
-                    headers={"Authorization": f"Bearer {EXPO_TOKEN}"}
+                # Use GraphQL to get build status
+                graphql_query = """
+                query GetBuild($buildId: ID!) {
+                    builds {
+                        byId(buildId: $buildId) {
+                            id
+                            status
+                            artifacts {
+                                buildUrl
+                            }
+                        }
+                    }
+                }
+                """
+                
+                response = await client.post(
+                    "https://api.expo.dev/graphql",
+                    headers={
+                        "Authorization": f"Bearer {EXPO_TOKEN}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "query": graphql_query,
+                        "variables": {"buildId": expo_build_id}
+                    }
                 )
                 
                 if response.status_code == 200:
-                    expo_build = response.json()
-                    new_status = expo_build.get("status", "building")
-                    download_url = expo_build.get("artifacts", {}).get("buildUrl")
-                    
-                    # Update local record
-                    await db.mobile_builds.update_one(
-                        {"id": build_id},
-                        {"$set": {
-                            "status": new_status,
-                            "download_url": download_url,
-                            "updated_at": datetime.now(timezone.utc).isoformat()
-                        }}
-                    )
-                    
-                    build["status"] = new_status
-                    build["download_url"] = download_url
+                    result = response.json()
+                    expo_build = result.get("data", {}).get("builds", {}).get("byId", {})
+                    if expo_build:
+                        new_status = expo_build.get("status", "building").lower()
+                        download_url = expo_build.get("artifacts", {}).get("buildUrl")
+                        
+                        # Map Expo status to our status
+                        status_map = {
+                            "new": "pending",
+                            "in_queue": "pending",
+                            "in_progress": "building",
+                            "finished": "finished",
+                            "errored": "errored",
+                            "canceled": "errored"
+                        }
+                        mapped_status = status_map.get(new_status, new_status)
+                        
+                        # Update local record
+                        await db.mobile_builds.update_one(
+                            {"id": build_id},
+                            {"$set": {
+                                "status": mapped_status,
+                                "download_url": download_url,
+                                "updated_at": datetime.now(timezone.utc).isoformat()
+                            }}
+                        )
+                        
+                        build["status"] = mapped_status
+                        build["download_url"] = download_url
         except Exception as e:
             logger.warning(f"Could not fetch Expo build status: {e}")
     
     return build
+
+@app.get("/api/mobile/config")
+async def get_mobile_config(user: dict = Depends(get_current_user)):
+    """Get mobile app configuration for this tenant"""
+    company = await db.company.find_one({}, {"_id": 0})
+    company_name = company.get("name", "Rent A Car") if company else "Rent A Car"
+    company_code = os.environ.get("COMPANY_CODE", "tenant")
+    api_url = os.environ.get("API_URL", f"https://api.{os.environ.get('DOMAIN', 'example.com')}")
+    
+    return {
+        "customer_app": {
+            "project_id": EXPO_CUSTOMER_PROJECT_ID,
+            "dashboard_url": "https://expo.dev/accounts/vegabyte/projects/vega-rent-c-app/builds",
+            "config": {
+                "APP_NAME": company_name,
+                "API_URL": api_url,
+                "COMPANY_CODE": company_code
+            }
+        },
+        "operation_app": {
+            "project_id": EXPO_OPERATION_PROJECT_ID,
+            "dashboard_url": "https://expo.dev/accounts/vegabyte/projects/vega-rent-o-app/builds",
+            "config": {
+                "APP_NAME": f"{company_name} Operasyon",
+                "API_URL": api_url,
+                "COMPANY_CODE": company_code
+            }
+        }
+    }
+
+@app.post("/api/mobile/build/{build_id}/complete")
+async def complete_build(build_id: str, data: dict, user: dict = Depends(get_current_user)):
+    """Manually mark build as complete with download URL"""
+    if user["role"] != "firma_admin":
+        raise HTTPException(status_code=403, detail="Yetkiniz yok")
+    
+    download_url = data.get("download_url")
+    if not download_url:
+        raise HTTPException(status_code=400, detail="download_url gerekli")
+    
+    result = await db.mobile_builds.update_one(
+        {"id": build_id},
+        {"$set": {
+            "status": "finished",
+            "download_url": download_url,
+            "completed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Build bulunamadı")
+    
+    return {"success": True, "message": "Build tamamlandı olarak işaretlendi"}
 
 # ============== HEALTH CHECK ==============
 @app.get("/api/health")
