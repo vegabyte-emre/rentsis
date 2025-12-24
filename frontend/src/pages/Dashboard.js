@@ -118,7 +118,7 @@ export function Dashboard() {
             {company?.name || "Rent A Car"} 
           </h1>
           <p className="text-muted-foreground mt-1">
-            Hoş Geldiniz, {user?.full_name} • İşte bugünün özeti
+            Merhaba {user?.full_name}, bugün harika bir gün! 🚗
           </p>
         </div>
         <Button onClick={fetchDashboardData} variant="outline" size="sm" data-testid="refresh-dashboard">

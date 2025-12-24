@@ -119,14 +119,6 @@ export function Login() {
               </Link>
             </div>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-secondary/50 rounded-lg">
-              <p className="text-xs text-muted-foreground text-center mb-2">Demo Hesapları</p>
-              <div className="text-xs space-y-1">
-                <p><span className="font-medium">SuperAdmin:</span> admin@fleetease.com / admin123</p>
-                <p><span className="font-medium">Firma Admin:</span> firma@fleetease.com / firma123</p>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

@@ -26,6 +26,7 @@ import {
   FileCheck,
   CalendarDays,
   Link2,
+  Smartphone,
 } from "lucide-react";
 
 // Check if we're on panel subdomain
@@ -38,6 +39,8 @@ const menuItems = [
   { icon: CalendarDays, label: "Fiyat Takvimi", path: `${pathPrefix}/price-calendar`, roles: ["firma_admin", "operasyon"] },
   { icon: Users, label: "Müşteriler", path: `${pathPrefix}/customers`, roles: ["firma_admin", "operasyon"] },
   { icon: Calendar, label: "Rezervasyonlar", path: `${pathPrefix}/reservations`, roles: ["firma_admin", "operasyon", "personel"] },
+  { icon: MapPin, label: "Lokasyonlar", path: `${pathPrefix}/locations`, roles: ["firma_admin", "operasyon"] },
+  { icon: Smartphone, label: "Mobil Uygulamalar", path: `${pathPrefix}/mobile-apps`, roles: ["firma_admin"] },
   { icon: MapPin, label: "GPS Takip", path: `${pathPrefix}/gps`, roles: ["firma_admin", "operasyon"] },
   { icon: Wallet, label: "HGS Takip", path: `${pathPrefix}/hgs`, roles: ["firma_admin", "operasyon"] },
   { icon: FileCheck, label: "KABİS", path: `${pathPrefix}/kabis`, roles: ["firma_admin", "operasyon"] },

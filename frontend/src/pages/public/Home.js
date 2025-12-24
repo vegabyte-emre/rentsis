@@ -43,7 +43,9 @@ export function Home() {
   const [themeData, setThemeData] = useState(null);
   const [pickupDate, setPickupDate] = useState(null);
   const [returnDate, setReturnDate] = useState(null);
-  const [location, setLocation] = useState("");
+  const [pickupLocation, setPickupLocation] = useState("");
+  const [dropoffLocation, setDropoffLocation] = useState("");
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -54,12 +56,14 @@ export function Home() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [vehiclesRes, themeRes] = await Promise.all([
-        axios.get(`${getApiUrl()}/api/public/vehicles?limit=8`),
-        axios.get(`${getApiUrl()}/api/public/theme-settings`),
+      const [vehiclesRes, themeRes, locationsRes] = await Promise.all([
+        axios.get(`${getApiUrl()}/api/public/vehicles?limit=8`).catch(() => ({ data: [] })),
+        axios.get(`${getApiUrl()}/api/public/theme-settings`).catch(() => ({ data: {} })),
+        axios.get(`${getApiUrl()}/api/locations`).catch(() => ({ data: [] })),
       ]);
-      setVehicles(vehiclesRes.data);
-      setThemeData(themeRes.data);
+      setVehicles(vehiclesRes.data || []);
+      setThemeData(themeRes.data || {});
+      setLocations(locationsRes.data || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -289,70 +293,84 @@ export function Home() {
             </div>
           </>
         )}
+      </section>
 
-        {/* Search Box */}
-        <div className="absolute bottom-0 left-0 right-0 transform translate-y-1/2">
-          <div className="container mx-auto px-4">
-            <Card className="shadow-2xl border-0">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Alış Tarihi</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {pickupDate ? format(pickupDate, "dd MMM yyyy", { locale: tr }) : "Tarih seçin"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={pickupDate} onSelect={setPickupDate} locale={tr} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">İade Tarihi</label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {returnDate ? format(returnDate, "dd MMM yyyy", { locale: tr }) : "Tarih seçin"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={returnDate} onSelect={setReturnDate} locale={tr} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Lokasyon</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Şehir veya havalimanı"
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700 opacity-0">Ara</label>
-                    <Link to="/araclar" className="block">
-                      <Button className="w-full h-10" style={dynamicStyles.primaryButton}>
-                        Araç Ara
+      {/* Search Box - Ayrı Section */}
+      <section className="relative z-10 -mt-16 pb-8">
+        <div className="container mx-auto px-4">
+          <Card className="shadow-2xl border-0">
+            <CardContent className="p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Alış Tarihi</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal h-11">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {pickupDate ? format(pickupDate, "dd MMM yyyy", { locale: tr }) : "Tarih seçin"}
                       </Button>
-                    </Link>
-                  </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={pickupDate} onSelect={setPickupDate} locale={tr} />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">İade Tarihi</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left font-normal h-11">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {returnDate ? format(returnDate, "dd MMM yyyy", { locale: tr }) : "Tarih seçin"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={returnDate} onSelect={setReturnDate} locale={tr} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Alış Lokasyonu</label>
+                  <select
+                    value={pickupLocation}
+                    onChange={(e) => setPickupLocation(e.target.value)}
+                    className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="">Lokasyon seçin</option>
+                    {locations.filter(l => l.is_pickup).map((loc) => (
+                      <option key={loc.id} value={loc.id}>{loc.name} - {loc.city}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Teslim Lokasyonu</label>
+                  <select
+                    value={dropoffLocation}
+                    onChange={(e) => setDropoffLocation(e.target.value)}
+                    className="w-full h-11 px-3 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="">Lokasyon seçin</option>
+                    {locations.filter(l => l.is_dropoff).map((loc) => (
+                      <option key={loc.id} value={loc.id}>{loc.name} - {loc.city}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 hidden lg:block">&nbsp;</label>
+                  <Link to="/araclar" className="block">
+                    <Button className="w-full h-11" style={dynamicStyles.primaryButton}>
+                      Araç Ara
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="pt-32 pb-16 bg-gray-50">
+      <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
             {stats.map((stat, index) => (
