@@ -1756,6 +1756,37 @@ class PortainerService:
             if final_url and final_url.startswith("https://"):
                 logger.info(f"[UPDATE-TEMPLATE] Template update complete for {company_code} - URL preserved!")
             
+            # Step 10: Optional - Update mobile apps if containers exist
+            try:
+                containers = await self.list_containers()
+                container_names = [c.get('Names', [''])[0].replace('/', '') for c in containers]
+                
+                customer_app_container = f"{safe_code}_customer_app"
+                operation_app_container = f"{safe_code}_operation_app"
+                
+                if customer_app_container in container_names:
+                    logger.info(f"[UPDATE-TEMPLATE] Step 10a: Updating customer mobile app...")
+                    # Get company name from environment or use default
+                    company_name = os.environ.get('COMPANY_NAME', company_code.replace('_', ' ').title())
+                    results['customer_app_copy'] = await self.copy_mobile_app_to_tenant(
+                        company_code=company_code,
+                        app_type='customer',
+                        company_name=company_name,
+                        domain=domain
+                    )
+                
+                if operation_app_container in container_names:
+                    logger.info(f"[UPDATE-TEMPLATE] Step 10b: Updating operation mobile app...")
+                    company_name = os.environ.get('COMPANY_NAME', company_code.replace('_', ' ').title())
+                    results['operation_app_copy'] = await self.copy_mobile_app_to_tenant(
+                        company_code=company_code,
+                        app_type='operation',
+                        company_name=company_name,
+                        domain=domain
+                    )
+            except Exception as mobile_error:
+                logger.warning(f"[UPDATE-TEMPLATE] Mobile app update skipped: {mobile_error}")
+            
             return {
                 'success': True,
                 'message': f'Tenant {company_code} updated from template successfully',
