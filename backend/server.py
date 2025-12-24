@@ -1833,15 +1833,16 @@ async def get_mobile_template_status(user: dict = Depends(get_current_user)):
     containers = await portainer_service.get_containers()
     
     for container in containers:
-        name = container.get('Names', [''])[0].replace('/', '')
+        name = container.get('names', [''])[0].replace('/', '') if container.get('names') else ''
+        state = container.get('state', '')
         if name == 'rentacar_template_customer_app':
             status['customer_app'] = {
-                'status': container.get('State'),
+                'status': state,
                 'container': name
             }
         elif name == 'rentacar_template_operation_app':
             status['operation_app'] = {
-                'status': container.get('State'),
+                'status': state,
                 'container': name
             }
     
