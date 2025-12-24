@@ -3,28 +3,46 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Smartphone, Download, RefreshCw, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Smartphone, Download, RefreshCw, Clock, CheckCircle, XCircle, Loader2, ExternalLink, Copy, Info } from "lucide-react";
 import { toast } from "sonner";
 import getApiUrl from "../config/api";
 
 const statusConfig = {
   idle: { label: "Hazır", color: "secondary", icon: Smartphone },
+  pending: { label: "Bekliyor", color: "secondary", icon: Clock },
   building: { label: "Oluşturuluyor...", color: "default", icon: Loader2 },
   finished: { label: "Tamamlandı", color: "default", icon: CheckCircle },
   errored: { label: "Hata", color: "destructive", icon: XCircle },
 };
 
 export default function MobileApps() {
-  const [customerApp, setCustomerApp] = useState({ status: "idle", buildId: null, downloadUrl: null });
-  const [operationApp, setOperationApp] = useState({ status: "idle", buildId: null, downloadUrl: null });
+  const [customerApp, setCustomerApp] = useState({ status: "idle", buildId: null, downloadUrl: null, expoDashboard: null, instructions: [] });
+  const [operationApp, setOperationApp] = useState({ status: "idle", buildId: null, downloadUrl: null, expoDashboard: null, instructions: [] });
   const [builds, setBuilds] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [mobileConfig, setMobileConfig] = useState(null);
 
   const API_URL = getApiUrl();
 
   useEffect(() => {
     fetchBuilds();
+    fetchMobileConfig();
   }, []);
+
+  const fetchMobileConfig = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/api/mobile/config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMobileConfig(data);
+      }
+    } catch (error) {
+      console.error("Error fetching mobile config:", error);
+    }
+  };
 
   const fetchBuilds = async () => {
     try {
@@ -59,9 +77,21 @@ export default function MobileApps() {
       const data = await response.json();
       
       if (data.success) {
-        toast.success(`${appType === "customer" ? "Müşteri" : "Operasyon"} App build başladı!`);
-        setApp(prev => ({ ...prev, buildId: data.build_id }));
-        pollBuildStatus(appType, data.build_id);
+        toast.success(`${appType === "customer" ? "Müşteri" : "Operasyon"} App build talebi oluşturuldu!`);
+        setApp(prev => ({ 
+          ...prev, 
+          status: data.expo_build_id ? "building" : "pending",
+          buildId: data.build_id,
+          expoDashboard: data.expo_dashboard,
+          instructions: data.instructions || []
+        }));
+        
+        // If we got an expo_build_id, poll for status
+        if (data.expo_build_id) {
+          pollBuildStatus(appType, data.build_id);
+        }
+        
+        fetchBuilds();
       } else {
         toast.error(data.error || "Build başlatılamadı");
         setApp(prev => ({ ...prev, status: "errored" }));
@@ -100,6 +130,11 @@ export default function MobileApps() {
     
     // 30 dakika sonra durdur
     setTimeout(() => clearInterval(interval), 30 * 60 * 1000);
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Kopyalandı!");
   };
 
   const AppCard = ({ title, description, appType, appState, icon }) => {
