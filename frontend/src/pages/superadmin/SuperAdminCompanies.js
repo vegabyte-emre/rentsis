@@ -456,8 +456,23 @@ export function SuperAdminCompanies() {
                                   onClick={() => handleUpdateFromTemplate(company.id, company.name)}
                                 >
                                   <Download className="h-4 w-4 mr-2" />
-                                  Template&apos;den Güncelle
+                                  Web Template Güncelle
                                 </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-purple-400 hover:bg-slate-700 cursor-pointer"
+                                  onClick={() => handleUpdateMobileApps(company.id, company.name)}
+                                >
+                                  <Smartphone className="h-4 w-4 mr-2" />
+                                  Mobil App Güncelle
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-green-400 hover:bg-slate-700 cursor-pointer"
+                                  onClick={() => handleUpdateAll(company.id, company.name)}
+                                >
+                                  <RefreshCcw className="h-4 w-4 mr-2" />
+                                  Tümünü Güncelle (Web + Mobil)
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-slate-700" />
                                 <DropdownMenuItem
                                   className="text-blue-400 hover:bg-slate-700 cursor-pointer"
                                   onClick={() => {
