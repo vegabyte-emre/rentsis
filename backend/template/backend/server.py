@@ -1703,8 +1703,7 @@ async def get_build_status(build_id: str, user: dict = Depends(get_current_user)
     
     # Try to get status from Expo API if we have expo_build_id
     expo_build_id = build.get("expo_build_id")
-    if EXPO_TOKEN and expo_build_id:
-        import httpx
+    if HTTPX_AVAILABLE and EXPO_TOKEN and expo_build_id:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 # Use GraphQL to get build status
