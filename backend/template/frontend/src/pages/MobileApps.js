@@ -137,9 +137,11 @@ export default function MobileApps() {
     toast.success("Kopyalandı!");
   };
 
-  const AppCard = ({ title, description, appType, appState, icon }) => {
+  const AppCard = ({ title, description, appType, appState, icon, dashboardUrl }) => {
     const StatusIcon = statusConfig[appState.status]?.icon || Smartphone;
     const isBuilding = appState.status === "building";
+    const isPending = appState.status === "pending";
+    const config = mobileConfig?.[appType === "customer" ? "customer_app" : "operation_app"]?.config;
     
     return (
       <Card>
@@ -188,7 +190,54 @@ export default function MobileApps() {
             )}
           </div>
           
-          {isBuilding && (
+          {(isBuilding || isPending) && (
+            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800 flex items-center mb-2">
+                <Info className="h-4 w-4 mr-2" />
+                {isBuilding ? "Build işlemi devam ediyor..." : "Build talebi oluşturuldu"}
+              </p>
+              {appState.expoDashboard && (
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <a href={appState.expoDashboard} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Expo Dashboard'da Takip Et
+                  </a>
+                </Button>
+              )}
+            </div>
+          )}
+          
+          {isPending && appState.instructions && appState.instructions.length > 0 && (
+            <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+              <p className="text-sm font-medium text-amber-800 mb-2">Manuel Build Adımları:</p>
+              <ol className="text-xs text-amber-700 space-y-1 list-decimal list-inside">
+                {appState.instructions.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          {config && (
+            <div className="p-3 bg-gray-50 rounded-lg border">
+              <p className="text-xs font-medium text-gray-600 mb-2">Uygulama Yapılandırması:</p>
+              <div className="space-y-1">
+                {Object.entries(config).map(([key, value]) => (
+                  <div key={key} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">{key}:</span>
+                    <div className="flex items-center gap-1">
+                      <code className="bg-white px-1 py-0.5 rounded border text-gray-700">{value}</code>
+                      <button onClick={() => copyToClipboard(value)} className="p-0.5 hover:bg-gray-200 rounded">
+                        <Copy className="h-3 w-3 text-gray-400" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {(isBuilding || isPending) && (
             <p className="text-sm text-muted-foreground">
               <Clock className="h-3 w-3 inline mr-1" />
               Build süresi yaklaşık 10-20 dakika sürebilir
