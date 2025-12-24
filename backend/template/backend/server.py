@@ -1616,61 +1616,60 @@ async def start_mobile_build(data: MobileBuildRequest, user: dict = Depends(get_
     }
     await db.mobile_builds.insert_one(build_record)
     
-    # Try to trigger build via Expo GraphQL API
-    import httpx
-    
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            # Use Expo's GraphQL API to trigger build
-            graphql_query = """
-            mutation CreateAndroidBuild($appId: ID!, $job: AndroidJobInput!) {
-                android {
-                    build(appId: $appId, job: $job) {
-                        builds {
-                            id
-                            status
+    # Try to trigger build via Expo GraphQL API (if httpx available)
+    if HTTPX_AVAILABLE and EXPO_TOKEN:
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                # Use Expo's GraphQL API to trigger build
+                graphql_query = """
+                mutation CreateAndroidBuild($appId: ID!, $job: AndroidJobInput!) {
+                    android {
+                        build(appId: $appId, job: $job) {
+                            builds {
+                                id
+                                status
+                            }
                         }
                     }
                 }
-            }
-            """
-            
-            response = await client.post(
-                "https://api.expo.dev/graphql",
-                headers={
-                    "Authorization": f"Bearer {EXPO_TOKEN}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "query": graphql_query,
-                    "variables": {
-                        "appId": project_id,
-                        "job": {
-                            "type": "generic",
-                            "platform": "android",
-                            "projectArchive": None
+                """
+                
+                response = await client.post(
+                    "https://api.expo.dev/graphql",
+                    headers={
+                        "Authorization": f"Bearer {EXPO_TOKEN}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "query": graphql_query,
+                        "variables": {
+                            "appId": project_id,
+                            "job": {
+                                "type": "generic",
+                                "platform": "android",
+                                "projectArchive": None
+                            }
                         }
                     }
-                }
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                if result.get("data", {}).get("android", {}).get("build", {}).get("builds"):
-                    expo_build_id = result["data"]["android"]["build"]["builds"][0]["id"]
-                    await db.mobile_builds.update_one(
-                        {"id": build_id},
-                        {"$set": {"expo_build_id": expo_build_id, "status": "building"}}
-                    )
-                    return {
-                        "success": True,
-                        "build_id": build_id,
-                        "expo_build_id": expo_build_id,
-                        "message": "Build başlatıldı! Expo Dashboard'dan takip edebilirsiniz.",
-                        "expo_dashboard": dashboard_url
-                    }
-    except Exception as e:
-        logger.warning(f"Expo API call failed: {e}")
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get("data", {}).get("android", {}).get("build", {}).get("builds"):
+                        expo_build_id = result["data"]["android"]["build"]["builds"][0]["id"]
+                        await db.mobile_builds.update_one(
+                            {"id": build_id},
+                            {"$set": {"expo_build_id": expo_build_id, "status": "building"}}
+                        )
+                        return {
+                            "success": True,
+                            "build_id": build_id,
+                            "expo_build_id": expo_build_id,
+                            "message": "Build başlatıldı! Expo Dashboard'dan takip edebilirsiniz.",
+                            "expo_dashboard": dashboard_url
+                        }
+        except Exception as e:
+            logger.warning(f"Expo API call failed: {e}")
     
     # Return with manual instructions
     return {
