@@ -268,6 +268,117 @@ export function SuperAdminSettings() {
         </CardContent>
       </Card>
 
+      {/* Mobile App Template Settings */}
+      <Card className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border-blue-500/30">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Smartphone className="h-5 w-5 text-blue-400" />
+            Mobil Uygulama Template Yönetimi
+          </CardTitle>
+          <CardDescription className="text-slate-400">
+            GitHub'dan mobil uygulama şablonlarını güncelle (Expo + EAS)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <p className="text-sm text-slate-300 mb-3">📱 Mobil Template Güncelleme Akışı:</p>
+            <ol className="text-sm text-slate-400 space-y-2 list-decimal list-inside">
+              <li><strong>GitHub'dan Çek:</strong> En son kodu GitHub'dan template container'a çeker</li>
+              <li><strong>Bağımlılıkları Kur:</strong> yarn install ile paketleri kurar</li>
+              <li><strong>EAS CLI:</strong> Expo EAS CLI'yi hazır hale getirir</li>
+              <li><strong>Firma Güncelle:</strong> Tenant'lara kopyalanmaya hazır</li>
+            </ol>
+          </div>
+
+          {/* Mobile Template Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5 text-blue-400" />
+                  <span className="text-white font-medium">Müşteri App</span>
+                </div>
+                {mobileTemplateStatus?.templates?.customer_app?.status === 'running' ? (
+                  <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">Aktif</span>
+                ) : (
+                  <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">Bekliyor</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mb-3">vegabyte-emre/vega-rent-customer-app</p>
+              <Button 
+                onClick={() => updateMobileTemplate('customer')} 
+                disabled={updatingMobileTemplate}
+                size="sm"
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                {updatingMobileTemplate ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Github className="h-4 w-4 mr-2" />
+                    GitHub'dan Güncelle
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5 text-green-400" />
+                  <span className="text-white font-medium">Operasyon App</span>
+                </div>
+                {mobileTemplateStatus?.templates?.operation_app?.status === 'running' ? (
+                  <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">Aktif</span>
+                ) : (
+                  <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">Bekliyor</span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mb-3">vegabyte-emre/vega-rent-operation-mobilapp</p>
+              <Button 
+                onClick={() => updateMobileTemplate('operation')} 
+                disabled={updatingMobileTemplate}
+                size="sm"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                {updatingMobileTemplate ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Github className="h-4 w-4 mr-2" />
+                    GitHub'dan Güncelle
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <Button 
+            onClick={() => updateMobileTemplate('all')} 
+            disabled={updatingMobileTemplate}
+            className="w-full bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700"
+          >
+            {updatingMobileTemplate ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Güncelleniyor...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Tüm Mobil Template'leri Güncelle
+              </>
+            )}
+          </Button>
+
+          <div className="p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+            <p className="text-sm text-blue-400">
+              💡 Mobil template'ler güncellendikten sonra, firmaları güncelleyerek yeni mobil app kodunu tenant'lara kopyalayabilirsiniz.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Traefik Settings */}
       <Card className={`border ${traefikStatus?.installed ? 'bg-green-900/20 border-green-500/30' : 'bg-yellow-900/20 border-yellow-500/30'}`}>
         <CardHeader>
