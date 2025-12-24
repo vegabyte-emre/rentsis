@@ -1691,15 +1691,18 @@ async def deploy_code_to_template(user: dict = Depends(get_current_user)):
     results = {"frontend": None, "backend": None}
     
     try:
-        # Step 1: Build frontend with runtime config (no hardcoded API URL)
-        logger.info("[TEMPLATE] Building frontend...")
+        # Step 1: Build TENANT frontend template (NOT SuperAdmin!)
+        logger.info("[TEMPLATE] Building TENANT frontend template...")
+        
+        template_frontend_dir = "/app/backend/template/frontend"
+        
         env = os.environ.copy()
         env["REACT_APP_BACKEND_URL"] = ""  # Empty - will use runtime config
         env["CI"] = "false"
         
         build_result = subprocess.run(
             ["yarn", "build"],
-            cwd="/app/frontend",
+            cwd=template_frontend_dir,  # Use template frontend, NOT SuperAdmin
             env=env,
             capture_output=True,
             text=True,
@@ -1709,10 +1712,10 @@ async def deploy_code_to_template(user: dict = Depends(get_current_user)):
         if build_result.returncode != 0:
             return {"success": False, "error": "Frontend build failed", "details": build_result.stderr}
         
-        logger.info("[TEMPLATE] Frontend build successful, uploading...")
+        logger.info("[TEMPLATE] Tenant frontend build successful, uploading...")
         
         # Upload to template frontend container
-        build_dir = "/app/frontend/build"
+        build_dir = f"{template_frontend_dir}/build"  # Template build, NOT SuperAdmin
         tar_buffer = io.BytesIO()
         with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
             for root, dirs, files in os.walk(build_dir):
