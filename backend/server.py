@@ -1730,22 +1730,15 @@ async def deploy_code_to_template(user: dict = Depends(get_current_user)):
         )
         results["frontend"] = {"success": not frontend_upload.get("error"), "error": frontend_upload.get("error")}
         
-        # Step 2: Upload backend code to template backend container
-        logger.info("[TEMPLATE] Uploading backend code...")
-        backend_dir = "/app/backend"
+        # Step 2: Upload TENANT backend code to template backend container
+        # IMPORTANT: Use template backend, NOT SuperAdmin backend!
+        logger.info("[TEMPLATE] Uploading TENANT backend code...")
+        template_backend_dir = "/app/backend/template/backend"
         
         backend_tar = io.BytesIO()
         with tarfile.open(fileobj=backend_tar, mode='w') as tar:
-            tar.add(f"{backend_dir}/server.py", arcname="server.py")
-            tar.add(f"{backend_dir}/requirements.txt", arcname="requirements.txt")
-            
-            services_dir = f"{backend_dir}/services"
-            if os.path.exists(services_dir):
-                for root, dirs, files in os.walk(services_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        arcname = os.path.relpath(file_path, backend_dir)
-                        tar.add(file_path, arcname=arcname)
+            tar.add(f"{template_backend_dir}/server.py", arcname="server.py")
+            tar.add(f"{template_backend_dir}/requirements.txt", arcname="requirements.txt")
             
             # Add main.py
             main_content = b"from server import app\n"
