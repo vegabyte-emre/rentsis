@@ -1897,6 +1897,335 @@ asyncio.run(get())
             logger.warning(f"Error getting tickets from {company_code}: {e}")
             return []
 
+    # ============== MOBILE APP TEMPLATE FUNCTIONS ==============
+    
+    async def update_mobile_template_from_github(self, app_type: str, github_repo: str) -> Dict[str, Any]:
+        """
+        Clone/pull mobile app from GitHub to template container.
+        app_type: 'customer' or 'operation'
+        github_repo: e.g., 'vegabyte-emre/vega-rent-customer-app'
+        """
+        container_name = f"rentacar_template_{app_type}_app"
+        results = {
+            'clone': None,
+            'install': None,
+            'eas_install': None
+        }
+        
+        try:
+            logger.info(f"[MOBILE-TEMPLATE] Updating {app_type} app from GitHub: {github_repo}")
+            
+            # Step 1: Clean and clone repo
+            clone_cmd = f"""
+rm -rf /app/* 2>/dev/null || true
+cd /app && git clone --depth 1 https://github.com/{github_repo}.git . 2>&1
+"""
+            clone_result = await self.exec_in_container(container_name, clone_cmd)
+            results['clone'] = clone_result
+            
+            if not clone_result.get('success'):
+                return {'success': False, 'error': 'Git clone failed', 'results': results}
+            
+            # Step 2: Install dependencies
+            logger.info(f"[MOBILE-TEMPLATE] Installing dependencies...")
+            install_cmd = "cd /app && yarn install 2>&1 || npm install 2>&1"
+            install_result = await self.exec_in_container(container_name, install_cmd)
+            results['install'] = {'success': True} if install_result.get('success') else install_result
+            
+            # Step 3: Install EAS CLI globally
+            logger.info(f"[MOBILE-TEMPLATE] Installing EAS CLI...")
+            eas_cmd = "npm install -g eas-cli@latest 2>&1"
+            eas_result = await self.exec_in_container(container_name, eas_cmd)
+            results['eas_install'] = {'success': True} if eas_result.get('success') else eas_result
+            
+            logger.info(f"[MOBILE-TEMPLATE] {app_type} app template updated successfully")
+            
+            return {
+                'success': True,
+                'message': f'{app_type} app template updated from GitHub',
+                'results': results
+            }
+            
+        except Exception as e:
+            logger.error(f"[MOBILE-TEMPLATE] Error updating {app_type} template: {e}")
+            return {'success': False, 'error': str(e), 'results': results}
+
+    async def copy_mobile_app_to_tenant(self, company_code: str, app_type: str, 
+                                         company_name: str, domain: str) -> Dict[str, Any]:
+        """
+        Copy mobile app from template to tenant container with tenant-specific config.
+        """
+        safe_code = company_code.replace('-', '').replace('_', '')
+        template_container = f"rentacar_template_{app_type}_app"
+        tenant_container = f"{safe_code}_{app_type}_app"
+        
+        results = {
+            'code_copy': None,
+            'config_write': None,
+            'deps_install': None
+        }
+        
+        try:
+            logger.info(f"[MOBILE-COPY] Copying {app_type} app to {company_code}")
+            
+            # Step 1: Copy code from template to tenant (excluding node_modules and config)
+            copy_result = await self.copy_from_template(
+                template_container=template_container,
+                target_container=tenant_container,
+                source_path="/app",
+                dest_path="/",
+                exclude_files=["node_modules", "app.config.js", ".env", ".expo"]
+            )
+            results['code_copy'] = copy_result
+            
+            # Step 2: Write tenant-specific app.config.js
+            api_url = f"https://api.{domain}"
+            package_name = f"com.{safe_code}.rentacar"
+            
+            if app_type == "customer":
+                app_name = company_name
+                slug = f"{safe_code}-customer"
+            else:
+                app_name = f"{company_name} Operasyon"
+                slug = f"{safe_code}-operation"
+            
+            config_content = f'''export default {{
+  name: "{app_name}",
+  slug: "{slug}",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "light",
+  splash: {{
+    image: "./assets/splash.png",
+    resizeMode: "contain",
+    backgroundColor: "#ffffff"
+  }},
+  ios: {{
+    supportsTablet: true,
+    bundleIdentifier: "{package_name}.{app_type}"
+  }},
+  android: {{
+    adaptiveIcon: {{
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#ffffff"
+    }},
+    package: "{package_name}.{app_type}"
+  }},
+  web: {{
+    favicon: "./assets/favicon.png"
+  }},
+  extra: {{
+    API_URL: "{api_url}",
+    COMPANY_NAME: "{company_name}",
+    COMPANY_CODE: "{company_code}",
+    APP_TYPE: "{app_type}",
+    eas: {{
+      projectId: "{os.environ.get(f'EXPO_{app_type.upper()}_PROJECT_ID', '')}"
+    }}
+  }},
+  owner: "vegabyte"
+}};
+'''
+            
+            # Write config to container
+            config_result = await self.write_file_to_container(
+                tenant_container, 
+                "/app/app.config.js", 
+                config_content
+            )
+            results['config_write'] = config_result
+            
+            # Step 3: Install dependencies in tenant container
+            logger.info(f"[MOBILE-COPY] Installing dependencies in {tenant_container}...")
+            deps_result = await self.exec_in_container(
+                tenant_container, 
+                "cd /app && yarn install 2>&1 || npm install 2>&1"
+            )
+            results['deps_install'] = {'success': deps_result.get('success', False)}
+            
+            # Step 4: Install EAS CLI
+            await self.exec_in_container(tenant_container, "npm install -g eas-cli@latest 2>&1")
+            
+            logger.info(f"[MOBILE-COPY] {app_type} app copied to {company_code} successfully")
+            
+            return {
+                'success': True,
+                'message': f'{app_type} app copied to tenant with config',
+                'results': results
+            }
+            
+        except Exception as e:
+            logger.error(f"[MOBILE-COPY] Error: {e}")
+            return {'success': False, 'error': str(e), 'results': results}
+
+    async def write_file_to_container(self, container_name: str, file_path: str, content: str) -> Dict[str, Any]:
+        """Write a file to a container using tar upload"""
+        try:
+            # Create tar with the file
+            tar_buffer = std_io.BytesIO()
+            with tarfile.open(fileobj=tar_buffer, mode='w') as tar:
+                file_data = content.encode('utf-8')
+                file_info = tarfile.TarInfo(name=os.path.basename(file_path))
+                file_info.size = len(file_data)
+                tar.addfile(file_info, std_io.BytesIO(file_data))
+            
+            tar_data = tar_buffer.getvalue()
+            dest_dir = os.path.dirname(file_path)
+            
+            result = await self.upload_to_container(container_name, tar_data, dest_dir)
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error writing file to container: {e}")
+            return {'success': False, 'error': str(e)}
+
+    async def trigger_eas_build(self, company_code: str, app_type: str) -> Dict[str, Any]:
+        """
+        Trigger EAS build in tenant's mobile container.
+        Returns build ID for status tracking.
+        """
+        safe_code = company_code.replace('-', '').replace('_', '')
+        container_name = f"{safe_code}_{app_type}_app"
+        
+        try:
+            logger.info(f"[EAS-BUILD] Triggering build for {company_code} {app_type} app")
+            
+            # Check if EAS CLI is available
+            check_result = await self.exec_in_container(container_name, "which eas || echo 'not found'")
+            if 'not found' in str(check_result.get('output', {})):
+                # Install EAS CLI first
+                await self.exec_in_container(container_name, "npm install -g eas-cli@latest")
+            
+            # Run EAS build (non-blocking with --no-wait)
+            build_cmd = """cd /app && eas build --platform android --profile production --non-interactive --no-wait --json 2>&1"""
+            
+            result = await self.exec_in_container(container_name, build_cmd)
+            
+            if result.get('success'):
+                output = result.get('output', {}).get('text', '')
+                
+                # Parse build ID from output
+                import re
+                import json
+                
+                # Try to parse JSON output
+                try:
+                    # Find JSON in output
+                    json_match = re.search(r'\{[^{}]*"id"[^{}]*\}', output)
+                    if json_match:
+                        build_data = json.loads(json_match.group())
+                        build_id = build_data.get('id')
+                        return {
+                            'success': True,
+                            'build_id': build_id,
+                            'message': 'EAS build started successfully',
+                            'raw_output': output[:500]
+                        }
+                except:
+                    pass
+                
+                # Try to find build ID in plain text
+                id_match = re.search(r'Build ID:\s*([a-f0-9-]+)', output, re.IGNORECASE)
+                if id_match:
+                    return {
+                        'success': True,
+                        'build_id': id_match.group(1),
+                        'message': 'EAS build started',
+                        'raw_output': output[:500]
+                    }
+                
+                # Check for build link
+                link_match = re.search(r'https://expo\.dev/.*?/builds/([a-f0-9-]+)', output)
+                if link_match:
+                    return {
+                        'success': True,
+                        'build_id': link_match.group(1),
+                        'build_url': link_match.group(0),
+                        'message': 'EAS build started',
+                        'raw_output': output[:500]
+                    }
+                
+                return {
+                    'success': True,
+                    'build_id': None,
+                    'message': 'Build command executed, check Expo dashboard',
+                    'raw_output': output[:1000]
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'EAS build command failed',
+                    'details': result
+                }
+                
+        except Exception as e:
+            logger.error(f"[EAS-BUILD] Error: {e}")
+            return {'success': False, 'error': str(e)}
+
+    async def get_eas_build_status(self, build_id: str) -> Dict[str, Any]:
+        """
+        Get EAS build status using Expo API.
+        """
+        expo_token = os.environ.get('EXPO_TOKEN', '')
+        
+        if not expo_token:
+            return {'success': False, 'error': 'EXPO_TOKEN not configured'}
+        
+        try:
+            graphql_query = """
+            query GetBuild($buildId: ID!) {
+                builds {
+                    byId(buildId: $buildId) {
+                        id
+                        status
+                        platform
+                        artifacts {
+                            buildUrl
+                        }
+                        error {
+                            message
+                        }
+                    }
+                }
+            }
+            """
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    "https://api.expo.dev/graphql",
+                    headers={
+                        "Authorization": f"Bearer {expo_token}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "query": graphql_query,
+                        "variables": {"buildId": build_id}
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    build_data = data.get('data', {}).get('builds', {}).get('byId', {})
+                    
+                    if build_data:
+                        return {
+                            'success': True,
+                            'build_id': build_data.get('id'),
+                            'status': build_data.get('status', 'unknown').lower(),
+                            'platform': build_data.get('platform'),
+                            'download_url': build_data.get('artifacts', {}).get('buildUrl'),
+                            'error': build_data.get('error', {}).get('message')
+                        }
+                    else:
+                        return {'success': False, 'error': 'Build not found'}
+                else:
+                    return {'success': False, 'error': f'API error: {response.status_code}'}
+                    
+        except Exception as e:
+            logger.error(f"[EAS-STATUS] Error: {e}")
+            return {'success': False, 'error': str(e)}
+
 
 # Singleton instance
 portainer_service = PortainerService()
